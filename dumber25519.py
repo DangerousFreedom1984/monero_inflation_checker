@@ -1,11 +1,12 @@
-# Dumb25519: a stupid implementation of ed25519
-#
-# Use this code only for prototyping
-# -- putting this code into production would be dumb
-# -- assuming this code is secure would also be dumb
+"""
+This work, "MIC - Monero Inflation Checker", is a derivative of:
+    "Mininero" by ShenNoether (https://github.com/monero-project/mininero).
+    "Dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
+"MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
+"""
+# dumber25519: a even more stupid implementation of dumb25519
 
 import secrets
-from hashlib import blake2s
 import Keccak #cn_fast_hash
 
 # Curve parameters
@@ -13,6 +14,8 @@ q = 2**255 - 19
 l = 2**252 + 27742317777372353535851937790883648493
 cofactor = 8
 b = 256 # bit length
+p = 2**255 - 19
+
 
 # Internal helper methods
 def exponent(b,e,m):
@@ -31,11 +34,35 @@ def xfromy(y):
         x = q-x
     return x
 
+def xfromy_ztm(y):
+    # Not working
+
+    biny = bin(y)
+    b = biny[-1]
+    newbin = biny[:-1]
+    newy = newbin + '0'
+    y = int(newy,2)
+    xp = 0
+
+    import ipdb;ipdb.set_trace()
+    u = (y*y - 1) % q 
+    v = (d*y*y + 1) % q
+    z = (u * v**3) * exponent(u*v**7,((q-5)//8), q) % q
+    if ((v*z**2) % q) == (u % q):
+        xp = (z % q)
+    if ((v*z**2) % q) == (-u % q):
+        xp = z * 2**((q-1)//4) % q
+
+    if b != bin(xp)[-1]:
+        return -xp % q
+    else:
+        return xp % q
+
+
+
 def bit(h,i):
     return (int(h[i//8]) >> (i%8)) & 1
 
-d = -121665 * invert(121666,q)
-I = exponent(2,(q-1)//4,q)
 
 # An element of the main subgroup scalar field
 class Scalar:
@@ -499,46 +526,106 @@ def make_point(y):
         return None
     return P
 
-# Hash data to get a Point in the main subgroup
-def hash_to_point(*data):
-    result = ''
-    for datum in data:
-        if datum is None:
-            raise TypeError
-        result += blake2s(str(datum).encode('utf-8')).hexdigest()
+def sqroot(xx):
+    x = expmod(xx, ((q + 3) // 8), q)
+    if (x * x - xx) % q != 0:
+        x = (x * I) % q
+    if (x * x - xx) % q != 0:
+        print("no square root!")
+    return x
 
-    # Continue hashing until we get a valid Point
-    while True:
-        result = blake2s(result.encode('utf-8')).hexdigest()
-        if make_point(int(result,16)) is not None:
-            return make_point(int(result,16))*Scalar(cofactor)
+
+def theD():
+    return d
+
+
+def computeA():
+    return 2 * ((1 - d) % q) * inv((1 + d) % q) % q
+
+
+def expmod(b, e, m):
+    return pow(b, e, m)
+
+
+def modp_inv(x):
+    return pow(x, p - 2, p)
+
+
+def inv(x):
+    return pow(x, q - 2, q)
+
+
+def hash_to_point(hexVal):
+    u = hexToInt(cn_fast_hash(hexVal)) % q
+    A = 486662
+    ma = -1 * A % q
+    ma2 = -1 * A * A % q
+    sqrtm1 = sqroot(-1)
+    d = theD()  # print(radix255(d))
+    fffb1 = -1 * sqroot(-2 * A * (A + 2))
+    #print("fffb1", ed25519.radix255(fffb1))
+    fffb2 = -1 * sqroot(2 * A * (A + 2))
+    #print("fffb2", ed25519.radix255(fffb2))
+    fffb3 = sqroot(-1 * sqrtm1 * A * (A + 2))
+    #print("fffb3", ed25519.radix255(fffb3))
+    fffb4 = -1 * sqroot(sqrtm1 * A * (A + 2))
+    #print("fffb4", ed25519.radix255(fffb4))
+
+    w = (2 * u * u + 1) % q
+    xp = (w * w - 2 * A * A * u * u) % q
+    rx = expmod(w * inv(xp), ((q + 3) // 8), q)
+    x = rx * rx * (w * w - 2 * A * A * u * u) % q
+    y = (2 * u * u + 1 - x) % q  # w - x, if y is zero, then x = w
+
+    negative = False
+    if (y != 0):
+        y = (w + x) % q  # checking if you got the negative square root.
+        if (y != 0):
+            negative = True
+        else:
+            rx = rx * -1 * sqroot(-2 * A * (A + 2)) % q
+            negative = False
+    else:
+        # y was 0..
+        rx = (rx * -1 * sqroot(2 * A * (A + 2))) % q
+    if not negative:
+        rx = (rx * u) % q
+        z = (-2 * A * u * u) % q
+        sign = 0
+    else:
+        z = -1 * A
+        x = x * sqrtm1 % q  # ..
+        y = (w - x) % q
+        if (y != 0):
+            rx = rx * sqroot(-1 * sqrtm1 * A * (A + 2)) % q
+        else:
+            rx = rx * -1 * sqroot(sqrtm1 * A * (A + 2)) % q
+        sign = 1
+    # setsign
+    if ((rx % 2) != sign):
+        rx = - (rx) % q
+    rz = (z + w) % q
+    ry = (z - w) % q
+    rx = rx * rz % q
+
+    P = point_compress([rx, ry, rz])
+    P8 = P * Scalar(8)
+    return P8
+
+
+def hash_to_scalar(data):
+    res = cn_fast_hash(data)
+    return sc_reduce32(res)
 
 def cn_fast_hash(s):
     k = Keccak.Keccak()
     return k.Keccak((len(s) * 4, s), 1088, 512, 32 * 8, False).lower() #r = bitrate = 1088, c = capacity, n = output length in bits
 
-def hash_to_point2(data):
-    print('inside hashtopoint2')
-    import ipdb;ipdb.set_trace()
-    result = cn_fast_hash(data)
-    # Continue hashing until we get a valid Point
-    return result
-
-
-# Hash data to get a Scalar
-def hash_to_scalar(*data):
-    print('inside hash_to_point')
-    result = ''
-    for datum in data:
-        if datum is None:
-            raise TypeError
-        result += blake2s(str(datum).encode('utf-8')).hexdigest()
-
-    # Continue hashing until we get a valid Scalar
-    while True:
-        result = blake2s(result.encode('utf-8')).hexdigest()
-        if int(result,16) < l:
-            return Scalar(int(result,16))
+def hexToInt(h):
+    # Input: String with hex value
+    # Output: Int value corresponding
+    # Conversion uses little indian. The function int(h,16) wont work as it uses big indian.
+    return int.from_bytes(bytes.fromhex(h), "little")
 
 # Generate a random Scalar
 def random_scalar(zero=True):
@@ -551,13 +638,6 @@ def random_scalar(zero=True):
 def random_point():
     return hash_to_point(secrets.randbits(b))
 
-# The main subgroup default generator
-Gy = 4*invert(5,q)
-Gx = xfromy(Gy)
-G = Point(Gx % q, Gy % q)
-
-# Neutral group element
-Z = Point(0,1)
 
 # Perform a multiscalar multiplication using a simplified Pippenger algorithm
 def multiexp(scalars,points):
@@ -612,3 +692,89 @@ def multiexp(scalars,points):
             if pail != Z:
                 result += pail
     return result
+
+#### Functions to check ring signatures v1
+
+def scalarmultBase(sk):
+    # returns pubkey in hex, expects hex sk
+    return public_key(sk)
+
+def ge_frombytes_vartime(img):
+    return 0
+
+def public_key(sk):
+    # Input: Scalar (secret key)
+    # Output: Point (Public key)
+    pk = sk * G
+    return pk
+
+def hexToInt(h):
+    # Input: String with hex value
+    # Output: Int value corresponding
+    # Conversion uses little indian. The function int(h,16) wont work as it
+    # uses big indian.
+    return int.from_bytes(bytes.fromhex(h), "little")
+
+def publicFromSecret(sk):
+    # returns pubkey in hex, same as scalarmultBase
+    return binascii.hexlify(public_key(hexToInt(sk)))
+
+
+def point_compress(P):
+    zinv = modp_inv(P[2])
+    x = P[0] * zinv % p
+    y = P[1] * zinv % p
+    # Ptest = dumber25519.make_point(y)
+    # if Ptest.x != x:
+    # print('Something wrong here!!!! make_point not working')
+    # import ipdb;ipdb.set_trace()
+    # Function dumber25519.make_point(y) is wrong
+    return Point(x, y)
+
+
+def sc_reduce32(data):
+    return Scalar(hexToInt(data) % l)
+
+
+def ge_double_scalarmult_base_vartime(aa, AA, bb):
+    tmpa = aa * AA
+    tmpb = bb * G
+    return tmpa + tmpb
+
+
+def ge_double_scalarmult_vartime(aa, AA, bb, BB):
+    tmpa = aa * AA
+    tmpb = bb * BB
+    return tmpa + tmpb
+
+def sc_add(aa, bb):
+    return (aa + bb) % l
+
+def sc_sub(aa, bb):
+    return (aa - bb) % l
+
+def sc_isnonzero(c):
+    return (c % q != Scalar(0))
+
+def sc_mulsub(aa, bb, cc):
+    return (cc - aa * bb) % l
+
+def sc_check(a):
+    if a == Scalar(0):
+        return False
+    return (a == sc_reduce_key(a))
+
+def sc_reduce_key(a):
+    return a % l
+
+# Other constants
+d = -121665 * invert(121666,q)
+I = exponent(2,(q-1)//4,q)
+
+# The main subgroup default generator
+Gy = 4*invert(5,q)
+Gx = xfromy(Gy)
+G = Point(Gx % q, Gy % q)
+
+# Neutral group element
+Z = Point(0,1)
