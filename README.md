@@ -1,4 +1,5 @@
-# monero_inflation_checker
+# Monero Inflation Checker
+========
 This work, "MIC - Monero Inflation Checker", is a derivative of:
     "Mininero" by ShenNoether (https://github.com/monero-project/mininero) and
     "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
