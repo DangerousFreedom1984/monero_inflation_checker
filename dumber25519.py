@@ -4,7 +4,7 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
     "Dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
-# dumber25519: a even more stupid implementation of dumb25519
+# dumber25519: an even more stupid implementation of ed25519
 
 import secrets
 import Keccak #cn_fast_hash
@@ -70,11 +70,14 @@ class Scalar:
         # Generated from an integer value
         if isinstance(x,int):
             self.x = x % l
-        # Generated from a hex representation
+        # Generated from a hex representation or 'l'
         elif isinstance(x,str):
             try:
-                x = bytes.fromhex(x)
-                self.x = sum(2**i * bit(x,i) for i in range(0,b)) % l
+                if x == 'l':
+                    self.x = l # technically not in scalar field; used for main subgroup membership
+                else:
+                    x = bytes.fromhex(x)
+                    self.x = sum(2**i * bit(x,i) for i in range(0,b)) % l
             except:
                 raise TypeError
         else:
