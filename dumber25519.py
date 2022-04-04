@@ -9,6 +9,10 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import secrets
 import Keccak #cn_fast_hash
 
+import time
+import nacl.bindings
+import binascii
+
 # Curve parameters
 q = 2**255 - 19
 l = 2**252 + 27742317777372353535851937790883648493
@@ -251,17 +255,32 @@ class Point:
         return NotImplemented
 
     # Multiplication
+    # def __mul__(self,y):
+        # # Point-Scalar: scalar multiplication
+        # if isinstance(y,Scalar):
+            # if y == Scalar(0):
+                # return Point(0,1)
+            # Q = self.__mul__(y/Scalar(2))
+            # Q = Q.__add__(Q)
+            # if y.x & 1:
+                # Q = self.__add__(Q)
+            # return Q
+        # return NotImplemented
+
+    # Multiplication
     def __mul__(self,y):
         # Point-Scalar: scalar multiplication
         if isinstance(y,Scalar):
             if y == Scalar(0):
                 return Point(0,1)
-            Q = self.__mul__(y/Scalar(2))
-            Q = Q.__add__(Q)
-            if y.x & 1:
-                Q = self.__add__(Q)
-            return Q
+            sk = binascii.a2b_hex(str(y).encode('utf-8'))
+            pk = binascii.a2b_hex(str(self).encode('utf-8'))
+            # import ipdb;ipdb.set_trace()
+            Q = nacl.bindings.crypto_scalarmult_ed25519_noclamp(sk,pk)
+            # Q = nacl.bindings.crypto_scalarmult_ed25519_base_noclamp(sk)
+            return Point(Q.hex())
         return NotImplemented
+
 
     def __rmul__(self,y):
         # Scalar-Point
@@ -611,8 +630,10 @@ def hash_to_point(hexVal):
     ry = (z - w) % q
     rx = rx * rz % q
 
+    # import ipdb;ipdb.set_trace()
     P = point_compress([rx, ry, rz])
-    P8 = P * Scalar(8)
+    # P8 = P * Scalar(8)
+    P8 = P + P + P + P + P + P + P + P
     return P8
 
 
