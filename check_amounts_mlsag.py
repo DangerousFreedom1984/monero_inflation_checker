@@ -240,22 +240,42 @@ def get_borromean_vars(resp_json,ind):
 
 def check_Borromean(P1,P2,bbee,bbs0,bbs1):
     LV = ''
-    import ipdb;ipdb.set_trace()
+    # import ipdb;ipdb.set_trace()
+    t1 = time.time()
 
     for j in range(64):
         # ge_double_scalarmult_base_vartime(&p2, bb.ee.bytes, &P1[ii], bb.s0[ii].bytes); // a*A + b*G -> bb.ee*P1 + bb.s0*G = p2
-        LL = bbee*P1[j]+bbs0[j]*dumber25519.G
+
+        LL = bbee*P1[j] + bbs0[j]*dumber25519.G
         chash = dumber25519.hash_to_scalar(str(LL))
         LV += str(chash*P2[j] + bbs1[j]*dumber25519.G) 
+        # print(bbee*P1[j])
+        # print(bbs0[j]*dumber25519.G)
 
     eeComp = dumber25519.hash_to_scalar(LV)
     res = bbee - eeComp
     print(res)
-    import ipdb;ipdb.set_trace()
+    print('Time to check Borromean:', (time.time()-t1))
+    return res==Scalar(0)
+    # import ipdb;ipdb.set_trace()
 
 
+def check_mult(P1,P2,bbee,bbs0,bbs1):
+    LV = ''
+    t1 = time.time()
+    for i in range(10):
+        for j in range(64):
+            # ge_double_scalarmult_base_vartime(&p2, bb.ee.bytes, &P1[ii], bb.s0[ii].bytes); // a*A + b*G -> bb.ee*P1 + bb.s0*G = p2
+            LL = bbee*P1[j]
+    print('Time to make one mult:', (time.time()-t1)/640)
 
-
+def check_hts(P1,P2,bbee,bbs0,bbs1):
+    t1 = time.time()
+    for i in range(10):
+        for j in range(64):
+            chash = dumber25519.hash_to_scalar(str(P1[j]))
+            # ge_double_scalarmult_base_vartime(&p2, bb.ee.bytes, &P1[ii], bb.s0[ii].bytes); // a*A + b*G -> bb.ee*P1 + bb.s0*G = p2
+    print('Time to make one mult:', (time.time()-t1)/640)
 
 
 def check_MLSAG(m,pk, I, c, ss):
@@ -273,11 +293,11 @@ def check_MLSAG(m,pk, I, c, ss):
         toHash += m
 
         for j in range(1):
-            print('Part 1 --')
-            print("j: ",j)
-            print("ss[j][i][0]: ",ss[i][j])
-            print("pk: ",j)
-            print("pk[j][i]: ",pk[i][j])
+            # print('Part 1 --')
+            # print("j: ",j)
+            # print("ss[j][i][0]: ",ss[i][j])
+            # print("pk: ",j)
+            # print("pk[j][i]: ",pk[i][j])
 
             L1 = ss[i][j]*dumber25519.G + c_old*pk[i][j]
             R = ss[i][j]*dumber25519.hash_to_point(str(pk[i][j]))+c_old*I
@@ -286,11 +306,11 @@ def check_MLSAG(m,pk, I, c, ss):
             toHash += str(R)
 
         for j in range(1,2):
-            print('Part 2 --')
-            print("pk: ",j)
-            print("pk[j][i]: ",pk[i][j])
-            print("j: ",j)
-            print("ss[j][i][1]: ",ss[i][j])
+            # print('Part 2 --')
+            # print("pk: ",j)
+            # print("pk[j][i]: ",pk[i][j])
+            # print("j: ",j)
+            # print("ss[j][i][1]: ",ss[i][j])
             L2 = ss[i][j]*dumber25519.G + c_old*pk[i][j]
             # R = ss[j][i][1]*dumber25519.hash_to_point(str(pk[j][i]))+c_old*I[j]
             toHash += str(pk[i][j])
@@ -300,11 +320,34 @@ def check_MLSAG(m,pk, I, c, ss):
         c_old = dumber25519.hash_to_scalar(toHash)
         i = i + 1
 
-    import ipdb;ipdb.set_trace()
+    # import ipdb;ipdb.set_trace()
     res = c_old - c
     print(res)
     return (res == Scalar(0))
 
+
+def check_amounts(pseudoOuts,outPk,fee):
+
+    H = Scalar(8) * dumber25519.Point(dumber25519.cn_fast_hash(str(dumber25519.G)))
+    in_len = len(outPk)
+    out_len = len(pseudoOuts)
+    zeroP = Scalar(0)*dumber25519.G 
+
+    sum_out = zeroP 
+    sum_in = zeroP
+
+    for i in range(in_len):
+        sum_out += Point(outPk[i])
+
+    for i in range(out_len):
+        sum_in += Point(pseudoOuts[i])
+
+    res = sum_in - sum_out - Scalar(fee)*H
+    if res != zeroP:
+        print('Inflation!!! Something wrong here')
+        import ipdb;ipdb.set_trace()
+
+    return 0
 
 
 h=1400005
@@ -330,7 +373,7 @@ txs = block_json['tx_hashes']
 # Number of txs
 nbr_txs.append(len(txs))
 
-index = 0
+index = 1
 resp_json,resp_hex = get_tx(txs,index) 
 ecdh = resp_json["rct_signatures"]["ecdhInfo"]
 
@@ -375,6 +418,8 @@ for i in range(len(resp_json['vin'])):
 
 
 masks = get_masks_in_ring(resp_json,cols,rows)
+
+import ipdb;ipdb.set_trace()
 pseudoOuts = get_pseudo_outs(resp_json)
 # masks = get_masks()
 
@@ -392,18 +437,30 @@ IIv = II[i]
 # import ipdb;ipdb.set_trace()
 # check_MLSAG(message,MG, IIv, cc, ss_scalar)
 
-import ipdb;ipdb.set_trace()
+# import ipdb;ipdb.set_trace()
 Ci = resp_json["rctsig_prunable"]["rangeSigs"][0]["Ci"]
 asig = resp_json["rctsig_prunable"]["rangeSigs"][0]["asig"]
 
 P1,P2,bbee,bbs0,bbs1 = get_borromean_vars(resp_json,0)
 
+import ipdb;ipdb.set_trace()
+# check_Borromean(P1,P2,bbee,bbs0,bbs1)
+
+pseudoOuts = resp_json["rct_signatures"]["pseudoOuts"]
+outPk = resp_json["rct_signatures"]["outPk"]
+fee = resp_json["rct_signatures"]["txnFee"]
+
+check_MLSAG(message,MG, IIv, cc, ss_scalar)
 check_Borromean(P1,P2,bbee,bbs0,bbs1)
+check_amounts_simple(pseudoOuts,outPk,fee)
+# check_amounts_full(Cprev,outPk,fee)
+
+# check_mult(P1,P2,bbee,bbs0,bbs1)
+# check_hts(P1,P2,bbee,bbs0,bbs1)
 
 # H = Scalar(8) * dumber25519.Point(dumber25519.cn_fast_hash(str(dumber25519.G)))
 # P1 = C1 - H
 # H2 = Scalar(2*8) * dumber25519.Point(dumber25519.cn_fast_hash(str(dumber25519.G)))
 # P2 = C2 - H2
-
 
 

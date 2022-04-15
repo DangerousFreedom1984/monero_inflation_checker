@@ -45,6 +45,26 @@ def get_ring_members(index,amount):
 
     return response.json()["outs"][0]["key"]
 
+# def get_commitment_member(index,amount):
+
+    # url = "http://localhost:18081/get_outs"
+    # headers = {'Content-Type': 'application/json'}
+    # rpc_input = {
+           # "outputs": [{
+               # "amount": amount,
+               # "index": index
+                # }]
+           # }
+    # rpc_input.update({"jsonrpc": "2.0", "id": "0"})
+
+# # execute the rpc request
+    # response = requests.post(
+        # url,
+        # data=json.dumps(rpc_input),
+        # headers=headers)
+
+    # return response.json()["outs"][0]["mask"]
+
 def get_mask_members(index,amount):
 
     url = "http://localhost:18081/get_outs"
@@ -63,6 +83,7 @@ def get_mask_members(index,amount):
         data=json.dumps(rpc_input),
         headers=headers)
 
+    # import ipdb;ipdb.set_trace()
     return response.json()["outs"][0]["mask"]
 
 def get_tx(txs,index):
@@ -197,9 +218,19 @@ def ring_sig_correct(txs,index):
 def get_pseudo_outs(resp_json):
 
     pseudos =[]
-    for i in range(len(resp_json["rct_signatures"]["pseudoOuts"])):
-        pseudos.append(Point(resp_json["rct_signatures"]["pseudoOuts"][i]))
-    return pseudos
+    if "pseudoOuts" in resp_json["rct_signatures"]:
+        for i in range(len(resp_json["rct_signatures"]["pseudoOuts"])):
+            pseudos.append(Point(resp_json["rct_signatures"]["pseudoOuts"][i]))
+        return pseudos
+    else:
+        # import ipdb;ipdb.set_trace()
+        print('No pseudoOuts')
+        Ptemp = Scalar(0)*dumber25519.G
+        print(str(Ptemp))
+        for i in range(len(resp_json["rct_signatures"]["outPk"])):
+            Ptemp += Point(resp_json["rct_signatures"]["outPk"][i])   
+        return Ptemp + Scalar(resp_json["rct_signatures"]["txnFee"])*dumber25519.H
+
 
 def point_matrix_mg(pubs,masks,pseudoOuts):
     cols = len(pubs)
@@ -222,43 +253,102 @@ def ss_to_scalar(sss,rows,cols):
 # resp_json["rct_signatures"]["pseudoOuts"][0]
 # def point_matrix_pk(pubs,pseudoOuts,masks):
 
+def generate_MLSAG(m,PK,sk,index):
+    rows = len(PK)
+    cols = len(PK[0])
+    # I should check some stuff here like dimensions
+    msg0 = ''
+    msg0 += str(m)
 
-def check_MLSAG(m,pk, I, c, ss):
-    #Continue here... compare with original code
+    alpha0 = dumber25519.random_scalar()
+    aG0 = alpha0 * dumber25519.G
+    aHP = alpha0 * dumber25519.hash_to_point(str(PK[index][0]))
+    msg0 += str(PK[index][0])
+    msg0 += str(aG0)
+    msg0 += str(aHP)
+
+    alpha1 = dumber25519.random_scalar()
+    aG1 = alpha1 * dumber25519.G
+    msg0 += str(PK[index][1])
+    msg0 += str(aG1)
+
+    I0 = sk[0]*dumber25519.hash_to_point(str(PK[index][0]))
+
     import ipdb;ipdb.set_trace()
-    rows = len(pk)
-    cols = len(pk[0])
+    c_old = dumber25519.hash_to_scalar(msg0)
+    i = (index + 1) % rows
+    if i==0:
+        cc = copy.copy(c_old)
+    
+    ss = scalar_matrix(rows,cols,0) 
+
+    while (i!=index):
+        # print('i: ',i)
+        msg = ''
+        msg += str(m)
+
+        ss[i][0] = dumber25519.random_scalar() 
+        ss[i][1] = dumber25519.random_scalar() 
+
+        L1 = ss[i][0]*dumber25519.G + c_old*PK[i][0]
+        R = ss[i][0]*dumber25519.hash_to_point(str(PK[i][0]))+c_old*I0
+        msg += str(PK[i][0])
+        msg += str(L1)
+        msg += str(R)
+
+        L2 = ss[i][1]*dumber25519.G + c_old*PK[i][1]
+        msg += str(PK[i][1])
+        msg += str(L2)
+
+        c_old = dumber25519.hash_to_scalar(msg)
+        # print(c_old)
+        i = (i+1)%rows
+        if i==0:
+            cc = copy.copy(c_old)
+
+    import ipdb;ipdb.set_trace()
+    ss[index][0] = alpha0 - c_old*sk[0]
+    ss[index][1] = alpha1 - c_old*sk[1] 
+
+    return ss, cc, I0
+
+
+def check_MLSAG(m,PK, I, c, ss):
+    rows = len(PK)
+    cols = len(PK[0])
     c_old = copy.copy(c)
-    # Check some stuff here
+    # I should check some stuff here like dimensions
     i = 0
     msg = ''
-    msg += m
+    msg += str(m)
+    # import ipdb;ipdb.set_trace()
     while i < rows:
         toHash = ''
-        toHash += m
+        toHash += str(m)
 
         for j in range(1):
             print('Part 1 --')
             print("j: ",j)
             print("ss[j][i][0]: ",ss[i][j])
             print("pk: ",j)
-            print("pk[j][i]: ",pk[i][j])
+            print("pk[j][i]: ",PK[i][j])
+            # import ipdb;ipdb.set_trace()
 
-            L1 = ss[i][j]*dumber25519.G + c_old*pk[i][j]
-            R = ss[i][j]*dumber25519.hash_to_point(str(pk[i][j]))+c_old*I
-            toHash += str(pk[i][j])
+            L1 = ss[i][j]*dumber25519.G + c_old*PK[i][j]
+            R = ss[i][j]*dumber25519.hash_to_point(str(PK[i][j]))+c_old*I
+            toHash += str(PK[i][j])
             toHash += str(L1)
             toHash += str(R)
 
         for j in range(1,2):
             print('Part 2 --')
             print("pk: ",j)
-            print("pk[j][i]: ",pk[i][j])
+            print("pk[j][i]: ",PK[i][j])
             print("j: ",j)
             print("ss[j][i][1]: ",ss[i][j])
-            L2 = ss[i][j]*dumber25519.G + c_old*pk[i][j]
+            L2 = ss[i][j]*dumber25519.G + c_old*PK[i][j]
             # R = ss[j][i][1]*dumber25519.hash_to_point(str(pk[j][i]))+c_old*I[j]
-            toHash += str(pk[i][j])
+            toHash += str(PK[i][j])
             toHash += str(L2)
             # toHash += str(R)
 
@@ -272,8 +362,8 @@ def check_MLSAG(m,pk, I, c, ss):
 
 
 
-h=1400005
-tx = '74549c62bb4c7bc2e3f01b457a8528b33881b37c01fe04f76d32b778379d1945'
+h=1400008
+# tx = '74549c62bb4c7bc2e3f01b457a8528b33881b37c01fe04f76d32b778379d1945'
 
 
 save_now = 0
@@ -295,7 +385,7 @@ txs = block_json['tx_hashes']
 # Number of txs
 nbr_txs.append(len(txs))
 
-index = 0
+index = 1
 resp_json,resp_hex = get_tx(txs,index) 
 ecdh = resp_json["rct_signatures"]["ecdhInfo"]
 
@@ -330,6 +420,10 @@ cols = len(resp_json["vin"])
 rows = len(resp_json["vin"][0]['key']['key_offsets'])
 pubs = get_members_in_ring(txs,index,cols,rows)
 
+print('cols', cols)
+print('rows', rows)
+
+
 print('PUBS :')
 print(pubs)
 
@@ -340,20 +434,33 @@ for i in range(len(resp_json['vin'])):
 
 
 masks = get_masks_in_ring(resp_json,cols,rows)
+import ipdb;ipdb.set_trace()
 pseudoOuts = get_pseudo_outs(resp_json)
 # masks = get_masks()
 
 i = 0
 
 sss = resp_json["rctsig_prunable"]["MGs"][i]["ss"]
-ss_scalar = ss_to_scalar(sss,rows,cols)
+ss_scalar = ss_to_scalar(sss,rows,2)
 
 
 
 cc = Scalar(resp_json["rctsig_prunable"]["MGs"][i]["cc"])
-MG = point_matrix_mg(pubs[i],masks[i],pseudoOuts[i])
+# PK = point_matrix_mg(pubs[i],masks[i],pseudoOuts[i])
+PK = point_matrix_mg(pubs[i],masks[i],pseudoOuts)
 IIv = II[i]
 
-# import ipdb;ipdb.set_trace()
-check_MLSAG(message,MG, IIv, cc, ss_scalar)
+check_MLSAG(message,PK, IIv, cc, ss_scalar)
 
+import ipdb;ipdb.set_trace()
+
+
+# message = '06bc62dbfc5a9b2d408a6a68a8d3d949fd0732f8a08067faef29e58b41c73c78'
+# PK = [[Point('a9a0a41d7241649cf4f77f953287680f90a30c8878d49362b91cafd398be817c'),Point('ff4db1aee8d53b5d477ea200f20b4e4cb3615c3d8daf1cd45fe6e0d97bdd3316'),],[Point('0ada433a024c1cb115c70064b9e8e9379389c87759ab960754774689a0415721'),Point('3b7193bcb749c4bd0a5470309af38d88fee121a705a59232a6ff2f55ae5a1533'),],[Point('9855e371c4baa11f96f8afdbcf001e344a4f8ed20723a92b8bc13498d03f0750'),Point('aa12b65f356cd53f27ffcb0928846dcf43d095a346dda9e456289eac16f46e2e'),],[Point('59d87e0e3460085ce87e49322f3150dd1f8c085ee9a5b045d97179383dfe3937'),Point('3e3155e3bd7cb14a8c3dd820785ad1f32c810e078727a466bc236ffc5f7c2176'),],[Point('a91516d1fdb30eb9b37a61dba36e77caead71e276697b941d1fd84d0f25f7f6c'),Point('dfeb624430f3e81a4b7112043b8535a9b9c9193b0942f4103355500cb4f30880'),]]
+# sk = [Scalar('ce3c86ee5e0174ff4314975ab48be6298801a7bfdb230de767d1847f6663fa05'),Scalar('1d4db898a3ece8d3a4982ca58b6c4deac8a54a72193570906f97d93db4d90108'),]
+# index = 3
+
+
+# ss, cc, I = generate_MLSAG(message,PK,sk,index)
+
+# check_MLSAG(message,PK, I, cc, ss)

@@ -799,6 +799,7 @@ I = exponent(2,(q-1)//4,q)
 Gy = 4*invert(5,q)
 Gx = xfromy(Gy)
 G = Point(Gx % q, Gy % q)
+H = Scalar(8) * Point(cn_fast_hash(str(G)))
 
 # Neutral group element
 Z = Point(0,1)
