@@ -42,7 +42,7 @@ def get_key_image(resp_json,index):
     return image
 
 
-def ring_sig_correct(txs,index):
+def ring_sig_correct(txs,index,details):
 
     resp_json,resp_hex = com_db.get_tx(txs,index)
     tx_prefix = get_tx_prefix_hash(resp_json,resp_hex)
@@ -61,6 +61,11 @@ def ring_sig_correct(txs,index):
         # print(str_out)
         if verified == False:
             print('Signatures dont match! Verify this block')
+            print('Potential inflation in MLSAG ring signature! Please verify what is happening!')
+            raise Exception('ring_signature_failure')
+        else:
+            if details==1:
+                print(str_out)
         # print(verified)
 
     return verified 
@@ -138,7 +143,10 @@ def generate_ring_signature(prefix, image, pubs, pubs_count, sec, sec_index):
 def check_ring_signature(prefix, key_image, pubs, pubs_count, sigr, sigc):
     Li = [Scalar(0) for xx in range(pubs_count)]
     Ri = [Scalar(0) for xx in range(pubs_count)]
-    str_out = 'Arguments of check_ring_signature: '
+    str_out = '\n'
+    str_out += '--------------------------------------------------------'
+    str_out += '\n'
+    str_out += 'Arguments of check_ring_signature: '
     str_out += 'Prefix: ' + str(prefix)
     str_out += '\n'
     str_out += 'Key_image: ' + str(key_image)
@@ -175,7 +183,7 @@ def check_ring_signature(prefix, key_image, pubs, pubs_count, sigr, sigc):
         # print('Ri calculated for index = ' + str(ii))
         # print(Ri[ii])
         summ += sigc[ii]
-        str_out += 'Calculating sum (s) = sum(ci) ' + str(summ)
+        str_out += 'Calculating s: sum = sum + ci ' + str(summ)
         str_out += '\n'
 
     # buf = struct.pack('64s', prefix)
@@ -202,7 +210,9 @@ def check_ring_signature(prefix, key_image, pubs, pubs_count, sigr, sigc):
     else:
         str_out += 'Transaction is invalid. The signature does not match the data.'
 
-    
+    str_out += '\n'
+    str_out += '--------------------------------------------------------'
+    str_out += '\n'
 
     return (res == Scalar(0)),str_out
 

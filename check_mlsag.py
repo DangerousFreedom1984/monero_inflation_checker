@@ -13,7 +13,7 @@ from dumber25519 import Scalar, Point, PointVector, ScalarVector
 import copy
 import multiprocessing
 
-def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message):
+def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
     pseudoOuts = misc_func.get_pseudo_outs(resp_json,sig_ind)
     sss = resp_json["rctsig_prunable"]["MGs"][sig_ind]["ss"]
     ss_scalar = misc_func.ss_to_scalar(sss,rows,2)
@@ -22,9 +22,14 @@ def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message):
     PK = misc_func.point_matrix_mg(pubs[sig_ind],masks[sig_ind],pseudoOuts)
     IIv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
-    if not check_MLSAG(message,PK, IIv, cc, ss_scalar):
+    verified,str_out = check_MLSAG(message,PK, IIv, cc, ss_scalar,details)
+    if verified == False:
+        print('Signatures dont match! Verify this block')
         print('Potential inflation in MLSAG ring signature! Please verify what is happening!')
         raise Exception('ring_signature_failure')
+    else:
+        if details==1:
+            print(str_out)
 
     return 0
 
@@ -88,10 +93,26 @@ def generate_MLSAG(m,PK,sk,index):
     return ss, cc, I0
 
 
-def check_MLSAG(m,PK, I, c, ss):
+def check_MLSAG(m,PK, I, c, ss,details=0):
     rows = len(PK)
     cols = len(PK[0])
     c_old = copy.copy(c)
+
+    str_out = '\n'
+    str_out += '--------------------------------------------------------'
+    str_out += '\n'
+    str_out += 'Arguments of check_ring_signature: '
+    str_out += 'Prefix: ' + str(m)
+    str_out += '\n'
+    str_out += 'Key_image: ' + str(I)
+    str_out += '\n'
+    str_out += 'Public keys: ' + str(PK)
+    str_out += '\n'
+    str_out += 'Signature ss: ' + str(ss)
+    str_out += '\n'
+    str_out += 'Signature c: ' + str(c)
+    str_out += '\n'
+
     # I should check some stuff here like dimensions
     i = 0
     msg = ''
@@ -101,9 +122,23 @@ def check_MLSAG(m,PK, I, c, ss):
         toHash = ''
         toHash += str(m)
 
+        str_out += 'Calculating L1 = ss[i][0] * G + ci * P[i][0]   for index = ' + str(i)
+        str_out += '\n'
+        str_out += 'Calculating R = ss[i][0] * H(P[i][0]) + ci * I   for index = ' + str(i)
+        str_out += '\n'
 
         L1 = ss[i][0]*dumber25519.G + c_old*PK[i][0]
         R = ss[i][0]*dumber25519.hash_to_point(str(PK[i][0]))+c_old*I
+
+        str_out += 'L1 calculated for index = ' + str(i)
+        str_out += '\n'
+        str_out += str(L1)
+        str_out += '\n'
+        str_out += 'R calculated for index = ' + str(i)
+        str_out += '\n'
+        str_out += str(R)
+        str_out += '\n'
+
         toHash += str(PK[i][0])
         toHash += str(L1)
         toHash += str(R)
@@ -112,10 +147,31 @@ def check_MLSAG(m,PK, I, c, ss):
         toHash += str(PK[i][1])
         toHash += str(L2)
 
+        str_out += 'Calculating L2 = ss[i][1] * G + ci * P[i][1]   for index = ' + str(i)
+        str_out += '\n'
+        str_out += 'L2 calculated for index = ' + str(i)
+        str_out += '\n'
+        str_out += str(L2)
+        str_out += '\n'
+
         c_old = dumber25519.hash_to_scalar(toHash)
         i = i + 1
+        str_out += 'Calculating c_old: ' + str(c_old)
+        str_out += '\n'
 
-    return ((c_old - c) == Scalar(0))
+    
+    str_out += 'Calculating c_old - c ' 
+    str_out += '\n'
+    res = (c_old-c) == Scalar(0)
+    if res:
+        str_out += 'Transaction is valid. The signature matches the data.'
+    else:
+        str_out += 'Transaction is invalid. The signature does not match the data.'
+
+    str_out += '\n'
+    str_out += '--------------------------------------------------------'
+    str_out += '\n'
+    return res, str_out
 
 
 def get_tx_hash_mlsag(resp_json,resp_hex):

@@ -283,6 +283,9 @@ class Point:
             except Exception as inst:
                 print('Warning, error in multiplying point: '+str(self) +' by scalar: '+str(y))    # the exception instance
                 print('You should stop and verify this multiplication. It seems outside of the allowed Monero subgroup.')    # the exception instance
+                with open("error.txt", "w+") as file1:
+                    # Writing data to a file
+                    file1.write('Warning, error in multiplying point: '+str(self) +' by scalar: '+str(y))
                 # print('Args: ',inst.args)     # arguments stored in .args
                 # print('Inst: ',inst)
                 return Point(0,1)
