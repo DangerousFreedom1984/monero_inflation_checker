@@ -240,17 +240,12 @@ def get_borromean_vars(resp_json,ind):
 
 def check_Borromean(P1,P2,bbee,bbs0,bbs1):
     LV = ''
-    # import ipdb;ipdb.set_trace()
     t1 = time.time()
 
     for j in range(64):
-        # ge_double_scalarmult_base_vartime(&p2, bb.ee.bytes, &P1[ii], bb.s0[ii].bytes); // a*A + b*G -> bb.ee*P1 + bb.s0*G = p2
-
         LL = bbee*P1[j] + bbs0[j]*dumber25519.G
         chash = dumber25519.hash_to_scalar(str(LL))
         LV += str(chash*P2[j] + bbs1[j]*dumber25519.G) 
-        # print(bbee*P1[j])
-        # print(bbs0[j]*dumber25519.G)
 
     eeComp = dumber25519.hash_to_scalar(LV)
     res = bbee - eeComp
@@ -375,92 +370,9 @@ nbr_txs.append(len(txs))
 
 index = 1
 resp_json,resp_hex = get_tx(txs,index) 
-ecdh = resp_json["rct_signatures"]["ecdhInfo"]
-
-MGs = resp_json["rctsig_prunable"]["MGs"]
-ss = resp_json["rctsig_prunable"]["MGs"][0]["ss"]
-cc = resp_json["rctsig_prunable"]["MGs"][0]["cc"]
-Ci = resp_json["rctsig_prunable"]["rangeSigs"][0]["Ci"]
-
-
-extra_hex = ''
-for i in range(len(resp_json['extra'])):
-    extra_hex += format(resp_json["extra"][i],'02x')
-
-
-
-ph1 = resp_hex.split(extra_hex)[0] + extra_hex
-
-asig = resp_json["rctsig_prunable"]["rangeSigs"][0]["asig"]
-
-ph2 = resp_hex.split(extra_hex)[1].split(asig)[0]
-
-ph3 = resp_hex.split(resp_json["rct_signatures"]["outPk"][-1])[1].split(ss[0][0])[0]
-
-
-ph1_hash = dumber25519.cn_fast_hash(ph1)
-ph2_hash = dumber25519.cn_fast_hash(ph2)
-ph3_hash = dumber25519.cn_fast_hash(ph3)
-
-message = dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
-
-cols = len(resp_json["vin"])
-rows = len(resp_json["vin"][0]['key']['key_offsets'])
-pubs = get_members_in_ring(txs,index,cols,rows)
-
-print('PUBS :')
-print(pubs)
-
-II = []
-for i in range(len(resp_json['vin'])):
-    II.append(Point(resp_json["vin"][i]["key"]["k_image"]))
-
-
-
-masks = get_masks_in_ring(resp_json,cols,rows)
-
-import ipdb;ipdb.set_trace()
-pseudoOuts = get_pseudo_outs(resp_json)
-# masks = get_masks()
-
-i = 0
-
-sss = resp_json["rctsig_prunable"]["MGs"][i]["ss"]
-ss_scalar = ss_to_scalar(sss,rows,cols)
-
-
-
-cc = Scalar(resp_json["rctsig_prunable"]["MGs"][i]["cc"])
-MG = point_matrix_mg(pubs[i],masks[i],pseudoOuts[i])
-IIv = II[i]
-
-# import ipdb;ipdb.set_trace()
-# check_MLSAG(message,MG, IIv, cc, ss_scalar)
-
-# import ipdb;ipdb.set_trace()
-Ci = resp_json["rctsig_prunable"]["rangeSigs"][0]["Ci"]
-asig = resp_json["rctsig_prunable"]["rangeSigs"][0]["asig"]
 
 P1,P2,bbee,bbs0,bbs1 = get_borromean_vars(resp_json,0)
-
-import ipdb;ipdb.set_trace()
-# check_Borromean(P1,P2,bbee,bbs0,bbs1)
-
-pseudoOuts = resp_json["rct_signatures"]["pseudoOuts"]
-outPk = resp_json["rct_signatures"]["outPk"]
-fee = resp_json["rct_signatures"]["txnFee"]
-
-check_MLSAG(message,MG, IIv, cc, ss_scalar)
 check_Borromean(P1,P2,bbee,bbs0,bbs1)
-check_amounts_simple(pseudoOuts,outPk,fee)
-# check_amounts_full(Cprev,outPk,fee)
-
-# check_mult(P1,P2,bbee,bbs0,bbs1)
-# check_hts(P1,P2,bbee,bbs0,bbs1)
-
-# H = Scalar(8) * dumber25519.Point(dumber25519.cn_fast_hash(str(dumber25519.G)))
-# P1 = C1 - H
-# H2 = Scalar(2*8) * dumber25519.Point(dumber25519.cn_fast_hash(str(dumber25519.G)))
-# P2 = C2 - H2
+import ipdb;ipdb.set_trace()
 
 
