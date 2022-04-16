@@ -286,6 +286,7 @@ class Point:
                 with open("error.txt", "w+") as file1:
                     # Writing data to a file
                     file1.write('Warning, error in multiplying point: '+str(self) +' by scalar: '+str(y))
+                raise Exception('Error multiplying in the EC curve')
                 # print('Args: ',inst.args)     # arguments stored in .args
                 # print('Inst: ',inst)
                 return Point(0,1)

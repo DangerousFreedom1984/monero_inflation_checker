@@ -26,6 +26,9 @@ def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
     if verified == False:
         print('Signatures dont match! Verify this block')
         print('Potential inflation in MLSAG ring signature! Please verify what is happening!')
+        with open("error.txt", "w+") as file1:
+            # Writing data to a file
+            file1.write(str(resp_json))
         raise Exception('ring_signature_failure')
     else:
         if details==1:
