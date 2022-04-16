@@ -273,12 +273,20 @@ class Point:
         if isinstance(y,Scalar):
             if y == Scalar(0):
                 return Point(0,1)
-            sk = binascii.a2b_hex(str(y).encode('utf-8'))
-            pk = binascii.a2b_hex(str(self).encode('utf-8'))
-            # import ipdb;ipdb.set_trace()
-            Q = nacl.bindings.crypto_scalarmult_ed25519_noclamp(sk,pk)
-            # Q = nacl.bindings.crypto_scalarmult_ed25519_base_noclamp(sk)
-            return Point(Q.hex())
+            try:
+                sk = binascii.a2b_hex(str(y).encode('utf-8'))
+                pk = binascii.a2b_hex(str(self).encode('utf-8'))
+                Q = nacl.bindings.crypto_scalarmult_ed25519_noclamp(sk,pk)
+                # return Point(nacl.bindings.crypto_scalarmult_ed25519_noclamp(binascii.a2b_hex(str(y).encode('utf-8')),binascii.a2b_hex(str(self).encode('utf-8'))).hex())
+                return Point(Q.hex())
+
+            except Exception as inst:
+                print('Warning, error in multiplying point: '+str(self) +' by scalar: '+str(y))    # the exception instance
+                print('You should stop and verify this multiplication. It seems outside of the allowed Monero subgroup.')    # the exception instance
+                # print('Args: ',inst.args)     # arguments stored in .args
+                # print('Inst: ',inst)
+                return Point(0,1)
+
         return NotImplemented
 
 
@@ -660,7 +668,7 @@ def random_scalar(zero=True):
 
 # Generate a random Point in the main subgroup
 def random_point():
-    return hash_to_point(secrets.randbits(b))
+    return hash_to_point("{:x}".format(secrets.randbits(b)))
 
 
 # Perform a multiscalar multiplication using a simplified Pippenger algorithm
