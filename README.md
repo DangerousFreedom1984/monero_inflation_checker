@@ -8,8 +8,9 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 
 ## TLDR
+
 Minimal Python tools and educational material for checking inflation in Monero.
-You can get more information [here](https://www.moneroinflation.com/).
+You can get more information at [www.moneroinflation.com](https://www.moneroinflation.com/).
 
 ## What is it?
 
@@ -18,6 +19,7 @@ MIC offers minimal Python tools to check transactions, emission curve, ring sign
 The tools here are just for educational purposes. They are not ready for production. 
 
 ## Installation and requirements
+
 Please install the required packages inside a new virtual environment with:
 
 > python3 -m venv .vmic
@@ -40,7 +42,8 @@ After installing the required packages and having a full node running, you can s
 
 > python3 MIC.py
 
-##Contact:
+## Contact:
+
 Please feel free to reach out at monero-inflation-checker@protonmail.com
 
 If you think that this work taught you something or if you want to see it growing, please consider donating to: 
