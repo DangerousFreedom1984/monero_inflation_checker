@@ -43,11 +43,12 @@ def start_scanning(h):
         # print(nbr_tx)
 
         for i_tx in range(nbr_tx):
+            # import ipdb;ipdb.set_trace()
             verify_tx.verify_tx(txs,i_tx,0)
 
         h += 1
 
-        if h%100==0:
+        if h%10==0:
             write_height(str(h))
 
     print('Total time', time.time() - initial_time)

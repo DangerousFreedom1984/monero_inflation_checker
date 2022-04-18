@@ -267,6 +267,7 @@ class Point:
             # return Q
         # return NotImplemented
 
+
     # Multiplication
     def __mul__(self,y):
         # Point-Scalar: scalar multiplication
@@ -283,13 +284,18 @@ class Point:
             except Exception as inst:
                 print('Warning, error in multiplying point: '+str(self) +' by scalar: '+str(y))    # the exception instance
                 print('You should stop and verify this multiplication. It seems outside of the allowed Monero subgroup.')    # the exception instance
-                with open("error.txt", "w+") as file1:
+                with open("height.txt", "r") as file1:
+                    # Reading form a file
+                    height = int(file1.read())
+                with open("error.txt", "a+") as file1:
                     # Writing data to a file
-                    file1.write('Warning, error in multiplying point: '+str(self) +' by scalar: '+str(y))
-                raise Exception('Error multiplying in the EC curve')
+                    file1.write('\nWarning, error in multiplying point: '+str(self) +' by scalar: '+str(y))
+                    file1.write('\nLast height: '+str(height))
+                # raise Exception('\nError multiplying in the EC curve')
                 # print('Args: ',inst.args)     # arguments stored in .args
                 # print('Inst: ',inst)
-                return Point(0,1)
+                # return Point(0,1)
+                return mult_slow(Point(str(self)),y)
 
         return NotImplemented
 
@@ -314,6 +320,16 @@ class Point:
     # Negation
     def __neg__(self):
         return Z - self
+
+def mult_slow(P,y):
+    # Point-Scalar: scalar multiplication
+        if y == Scalar(0):
+            return Point(0,1)
+        Q = mult_slow(P,y/Scalar(2))
+        Q = Q.__add__(Q)
+        if y.x & 1:
+            Q = P.__add__(Q)
+        return Q
 
 # A vector of Points with superpowers
 class PointVector:

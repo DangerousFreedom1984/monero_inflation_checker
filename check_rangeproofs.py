@@ -17,9 +17,10 @@ def check_sig_Borromean(resp_json,sig_ind):
     P1,P2,bbee,bbs0,bbs1 = get_borromean_vars(resp_json,sig_ind)
     if not check_Borromean(P1,P2,bbee,bbs0,bbs1):
         print('Potential inflation in Borromean Signatures! Please verify what is happening!')
-        with open("error.txt", "w+") as file1:
+        with open("error.txt", "a+") as file1:
             # Writing data to a file
             file1.write(str(resp_json))
+            file1.write('\nPotential inflation in Borromean ring signature! Please verify what is happening!') 
         raise Exception('borromean_signature_failure')
     return 0
 

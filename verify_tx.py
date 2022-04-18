@@ -22,6 +22,7 @@ import multiprocessing
 
 def verify_tx(tx_to_check,i_tx=0,details=0):
 
+    # import ipdb;ipdb.set_trace()
     if len(tx_to_check)>=1:
         txs = tx_to_check
         resp_json,resp_hex = com_db.get_tx(tx_to_check,i_tx) 
