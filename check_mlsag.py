@@ -12,6 +12,35 @@ import dumber25519
 from dumber25519 import Scalar, Point, PointVector, ScalarVector
 import copy
 import multiprocessing
+import check_rangeproofs
+
+
+def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,rows,details):
+        message = get_tx_hash_mlsag(resp_json,resp_hex)
+        pubs = misc_func.get_members_in_ring(txs,i_tx,inputs,rows)
+        masks = misc_func.get_masks_in_ring(resp_json,inputs,rows)
+        # import ipdb;ipdb.set_trace()
+
+### Signature index
+        # time_ver = time.time()
+        for sig_ind in range(inputs):
+            # import ipdb;ipdb.set_trace()
+            try:
+                y = multiprocessing.Process(target=check_sig_mlsag, args=(resp_json,sig_ind,inputs,rows,pubs,masks,message,details ))
+                y.start()
+            except:
+                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
+
+        for sig_ind in range(outputs):
+            # import ipdb;ipdb.set_trace()
+            try:
+                x = multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, ))
+                x.start()
+            except:
+                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
+        # print('Total time verification', time.time() - time_ver)
+        # print('Total time verification tx', time.time() - time_tx)
+
 
 def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
     pseudoOuts = misc_func.get_pseudo_outs(resp_json,sig_ind)

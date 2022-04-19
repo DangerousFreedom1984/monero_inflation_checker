@@ -20,7 +20,7 @@ import multiprocessing
 
 ### TX
 
-def verify_tx(tx_to_check,i_tx=0,details=0):
+def verify_tx(h,tx_to_check,i_tx=0,details=0):
 
     # import ipdb;ipdb.set_trace()
     if len(tx_to_check)>=1:
@@ -34,33 +34,10 @@ def verify_tx(tx_to_check,i_tx=0,details=0):
     rows = len(resp_json["vin"][0]['key']['key_offsets'])
 
     if resp_json["version"] == 1:
-        # print('Verify v1 ...')
-        check_v1.ring_sig_correct(txs,i_tx,details)
+        check_v1.ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,rows,details)
     else:
-        # print('Verify v2 ...')
+        # Check type
+        check_mlsag.ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,rows,details)
 
-        message = check_mlsag.get_tx_hash_mlsag(resp_json,resp_hex)
-        pubs = misc_func.get_members_in_ring(txs,i_tx,inputs,rows)
-        masks = misc_func.get_masks_in_ring(resp_json,inputs,rows)
-
-### Signature index
-        # time_ver = time.time()
-        for sig_ind in range(inputs):
-            # import ipdb;ipdb.set_trace()
-            try:
-                y = multiprocessing.Process(target=check_mlsag.check_sig_mlsag, args=(resp_json,sig_ind,inputs,rows,pubs,masks,message,details ))
-                y.start()
-            except:
-                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
-
-        for sig_ind in range(outputs):
-            # import ipdb;ipdb.set_trace()
-            try:
-                x = multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, ))
-                x.start()
-            except:
-                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
-        # print('Total time verification', time.time() - time_ver)
-        # print('Total time verification tx', time.time() - time_tx)
 
 

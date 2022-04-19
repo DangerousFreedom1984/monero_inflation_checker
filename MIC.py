@@ -11,7 +11,7 @@ val = input("Enter your value: ")
 if val == '1':
     tx_to_check = input('Enter transaction id:')
     try:
-        verify_tx.verify_tx([str(tx_to_check)],i_tx=0,details=1)
+        verify_tx.verify_tx(0,[str(tx_to_check)],i_tx=0,details=1)
     except KeyError:
         print('Not found. Please enter a valid transaction.')
 

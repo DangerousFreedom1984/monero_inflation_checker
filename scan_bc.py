@@ -44,7 +44,7 @@ def start_scanning(h):
 
         for i_tx in range(nbr_tx):
             # import ipdb;ipdb.set_trace()
-            verify_tx.verify_tx(txs,i_tx,0)
+            verify_tx.verify_tx(h,txs,i_tx,0)
 
         h += 1
 

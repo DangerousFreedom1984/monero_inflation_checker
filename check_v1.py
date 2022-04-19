@@ -11,6 +11,7 @@ from dumber25519 import Scalar, Point, PointVector
 import dumber25519
 import struct
 import numpy as np
+import multiprocessing
 
 
 def get_tx_prefix_hash(resp_json,resp_hex):
@@ -41,8 +42,46 @@ def get_key_image(resp_json,index):
     image = resp_json["vin"][index]["key"]["k_image"]
     return image
 
+def check_v1(resp_json,resp_hex,sig_ind,tx_prefix,details):
+    pubs_count,sigr,sigc = get_signatures(resp_json,resp_hex,sig_ind)
+    key_image = get_key_image(resp_json,sig_ind)
 
-def ring_sig_correct(txs,index,details):
+    amount = resp_json["vin"][sig_ind]["key"]["amount"]
+    indices = np.cumsum(resp_json["vin"][sig_ind]["key"]["key_offsets"])  
+
+    candidates = []
+    for rm in range(pubs_count):
+        candidates.append(dumber25519.Point(com_db.get_ring_members(int(indices[rm]),int(amount))))
+    pubs = dumber25519.PointVector(candidates)  
+    verified,str_out = check_ring_signature(tx_prefix, key_image, pubs, pubs_count, sigr, sigc)
+    # print(str_out)
+    if verified == False:
+        print('Signatures dont match! Verify this block')
+        print('Potential inflation in MLSAG ring signature! Please verify what is happening!')
+        with open("error.txt", "a+") as file1:
+            # Writing data to a file
+            file1.write('\nPotential inflation in V1 ring signature! Please verify what is happening!') 
+            file1.write(str(resp_json))
+        raise Exception('ring_signature_failure')
+    else:
+        if details==1:
+            print(str_out)
+    # print(verified)
+
+def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,rows,details):
+
+    tx_prefix = get_tx_prefix_hash(resp_json,resp_hex)
+    # import ipdb;ipdb.set_trace()
+    for sig_ind in range(inputs):
+        try:
+            y = multiprocessing.Process(target=check_v1, args=(resp_json,resp_hex,sig_ind,tx_prefix,details, ))
+            y.start()
+        except:
+            print('Verify block_height: '+str(h)+' tx : '+str(txs[index]) + ' ring signature failed')
+
+    return 0 
+
+def ring_sig_correct_original(txs,index,details):
 
     resp_json,resp_hex = com_db.get_tx(txs,index)
     tx_prefix = get_tx_prefix_hash(resp_json,resp_hex)
