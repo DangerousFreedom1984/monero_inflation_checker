@@ -68,8 +68,9 @@ def check_v1(resp_json,resp_hex,sig_ind,tx_prefix,details):
             print(str_out)
     # print(verified)
 
-def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,rows,details):
+def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
 
+    rows = len(resp_json['vin'][0]['key']['key_offsets'])
     tx_prefix = get_tx_prefix_hash(resp_json,resp_hex)
     # import ipdb;ipdb.set_trace()
     for sig_ind in range(inputs):

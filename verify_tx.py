@@ -29,15 +29,31 @@ def verify_tx(h,tx_to_check,i_tx=0,details=0):
     else:
         return 0
 
-    inputs = len(resp_json["vin"])
+    inputs = len(resp_json['vin'])
     outputs = len(resp_json['vout'])
-    rows = len(resp_json["vin"][0]['key']['key_offsets'])
 
     if resp_json["version"] == 1:
-        check_v1.ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,rows,details)
+        if "gen" in resp_json["vin"][0]:
+            amount = 0
+            for i in range(outputs):
+                amount += resp_json['vout'][i]['amount']
+            print('Miner transaction. Total amount mined and transaction fees: ' + str(amount/1e12)+' XMR.')
+        else:
+            check_v1.ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
+
+
     else:
         # Check type
-        check_mlsag.ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,rows,details)
+        type_tx = resp_json["rct_signatures"]["type"]
+        if type_tx == 1 or type_tx == 2:
+            check_mlsag.ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
+        elif type_tx == 0:
+            amount = 0
+            for i in range(outputs):
+                amount += resp_json['vout'][i]['amount']
+            print('Miner transaction. Total amount mined and transaction fees: ' + str(amount/1e12)+' XMR.')
+        else:
+            raise Exception
 
 
 
