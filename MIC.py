@@ -4,15 +4,38 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
     "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
+
 from os.path import exists
 import verify_tx
 import scan_bc
+import settings
+
+
+print('---------------------------------------')
+print('WELCOME TO THE MONERO INFLATION CHECKER')
+print('---------------------------------------')
+
+print('Before we start, would you like to use your own full node (faster and more reliable) or use a public node (slower and less reliable)?')
+print('1. My own full node')
+print('2. Public node (Seth for Privacy)')
+val = input("Enter your choice: ")
+
+if val == '1':
+    settings.node_choice(1)
+else:
+    settings.node_choice(0)
+
+print(' ')
+print('Ok. Done. What do you want to do now?')
+print(' ')
+
 
 print('1. Verify a specific transaction')
 print('2. Scan blockchain')
 print('3. Quit')
 
-val = input("Enter your value: ")
+
+val = input("Enter your choice: ")
 
 if val == '1':
     tx_to_check = input('Enter transaction id:')
@@ -21,7 +44,7 @@ if val == '1':
     except KeyError:
         print('Not found. Please enter a valid transaction.')
     except Exception:
-        print('Not implemented yet. Please come back later')
+        print('Please check if your node is properly running. If so, maybe the verification for this tx was not implemented yet. Please come back later.')
 
 
 elif val == '2':

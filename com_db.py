@@ -8,6 +8,7 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 from monerorpc.authproxy import AuthServiceProxy, JSONRPCException
 import json
 import requests
+import settings
 
 # Execute on monerod: ./monerod --rpc-bind-port 18081 --rpc-login username:password
 username,password = 'username','password'
@@ -16,7 +17,10 @@ rpc_connection = AuthServiceProxy(service_url='http://{0}:{1}@127.0.0.1:18081/js
 
 def get_ring_members(index,amount):
 
-    url = "http://localhost:18081/get_outs"
+    if settings.node_conn == 0:
+        url = 'http://node.sethforprivacy.com:18089/get_outs'
+    else:
+        url = "http://localhost:18081/get_outs"
     headers = {'Content-Type': 'application/json'}
     rpc_input = {
            "outputs": [{
@@ -37,7 +41,10 @@ def get_ring_members(index,amount):
 
 def get_mask_members(index,amount):
 
-    url = "http://localhost:18081/get_outs"
+    if settings.node_conn == 0:
+        url = 'http://node.sethforprivacy.com:18089/get_outs'
+    else:
+        url = "http://localhost:18081/get_outs"
     headers = {'Content-Type': 'application/json'}
     rpc_input = {
            "outputs": [{
@@ -57,7 +64,11 @@ def get_mask_members(index,amount):
     return response.json()["outs"][0]["mask"]
 
 def get_tx(txs,index):
-    url = "http://localhost:18081/get_transactions"
+
+    if settings.node_conn == 0:
+        url = 'http://node.sethforprivacy.com:18089/get_transactions'
+    else:
+        url = "http://localhost:18081/get_transactions"
     headers = {'Content-Type': 'application/json'}
     rpc_input = {
            "txs_hashes": txs, "decode_as_json": True 
