@@ -195,9 +195,11 @@ def check_MLSAG(m,PK, I, c, ss,details=0):
         str_out += '\n'
 
     
-    str_out += 'Calculating c_old - c ' 
+    str_out += 'Calculating c_old - c :' 
     str_out += '\n'
     res = (c_old-c) == Scalar(0)
+    str_out += str(c_old-c)
+    str_out += '\n'
     if res:
         str_out += 'Transaction is valid. The signature matches the data.'
     else:
@@ -214,10 +216,10 @@ def get_tx_hash_mlsag(resp_json,resp_hex):
     for i in range(len(resp_json['extra'])):
         extra_hex += format(resp_json["extra"][i],'02x')
 
-
     ss = resp_json["rctsig_prunable"]["MGs"][0]["ss"]
-    ph1 = resp_hex.split(extra_hex)[0] + extra_hex
     asig = resp_json["rctsig_prunable"]["rangeSigs"][0]["asig"]
+
+    ph1 = resp_hex.split(extra_hex)[0] + extra_hex
     ph2 = resp_hex.split(extra_hex)[1].split(asig)[0]
     ph3 = resp_hex.split(resp_json["rct_signatures"]["outPk"][-1])[1].split(ss[0][0])[0]
 

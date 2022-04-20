@@ -9,6 +9,26 @@ from dumber25519 import Scalar, Point, PointVector, ScalarVector
 import com_db
 import numpy as np
 
+def scalar_matrix(cols,rows,ind):
+    if ind != 0:
+        return [[[Scalar(0) for _ in range(ind)] for _ in range(rows)] for _ in range(cols)]
+    else:
+        if rows != 0:
+            return [[Scalar(0) for _ in range(rows)] for _ in range(cols)]
+        else:
+            return [Scalar(0) for _ in range(cols)]
+
+def point_matrix(cols,rows,ind):
+    if ind != 0:
+        return [[[Scalar(0) for _ in range(ind)] for _ in range(rows)] for _ in range(cols)]
+    else:
+        if rows != 0:
+            return [[Scalar(0) for _ in range(rows)] for _ in range(cols)]
+        else:
+            return [Scalar(0) for _ in range(cols)]
+
+
+
 def key_matrix(cols,rows):
     rv = [Scalar(0)*dumber25519.G] * cols
     rh = [Scalar(0)*dumber25519.G] * rows 
@@ -17,17 +37,12 @@ def key_matrix(cols,rows):
         rv[i] = PointVector(rh)
     return rv
 
-def scalar_matrix(cols,rows,ind):
-    return [[[Scalar(0) for _ in range(ind)] for _ in range(rows)] for _ in range(cols)]
-
-
 def point_matrix_mg(pubs,masks,pseudoOuts):
     cols = len(pubs)
     mg = []
     for i in range(cols):
         mg.append(PointVector([pubs[i],masks[i]-pseudoOuts]))
     return mg
-
 
 def ss_to_scalar(sss,rows,cols):
     ss_scalar = scalar_matrix(rows,cols,0) 
