@@ -30,6 +30,8 @@ def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
             try:
                 y = multiprocessing.Process(target=check_sig_mlsag, args=(resp_json,sig_ind,inputs,rows,pubs,masks,message,details ))
                 y.start()
+                # check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
+                
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
 
@@ -40,6 +42,12 @@ def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
                 x.start()
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
+
+        try:
+            check_rangeproofs.check_commitments(resp_json)
+        except:
+            print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' commitments check failed')
+
         # print('Total time verification', time.time() - time_ver)
         # print('Total time verification tx', time.time() - time_tx)
 
@@ -50,7 +58,9 @@ def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
     ss_scalar = misc_func.ss_to_scalar(sss,rows,2)
 
     cc = Scalar(resp_json["rctsig_prunable"]["MGs"][sig_ind]["cc"])
+
     PK = misc_func.point_matrix_mg(pubs[sig_ind],masks[sig_ind],pseudoOuts)
+
     IIv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
     verified,str_out = check_MLSAG(message,PK, IIv, cc, ss_scalar,details)
@@ -236,5 +246,27 @@ def get_tx_hash_mlsag(resp_json,resp_hex):
 
 
 # ss, cc, I = generate_MLSAG(message,PK,sk,index)
+# print('c_0: ')
+# print(cc)
+# print('ss: ')
+# print(ss)
+# print('I: ')
+# print(I)
+# import ipdb;ipdb.set_trace()
 
-# check_MLSAG(message,PK, I, cc, ss)
+
+# print('message: ')
+# print(message)
+# print('PK: ')
+# print(PK)
+# print('I: ')
+# print(I)
+# print('c_0: ')
+# print(cc)
+# print('ss: ')
+# print(ss)
+
+# ver, str_out = check_MLSAG(message,PK, I, cc, ss,1)
+# print(' Verified: ' , ver)
+# print(str_out)
+# import ipdb;ipdb.set_trace()

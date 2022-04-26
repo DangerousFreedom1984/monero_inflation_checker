@@ -24,6 +24,33 @@ def check_sig_Borromean(resp_json,sig_ind):
         raise Exception('borromean_signature_failure')
     return 0
 
+def check_commitments(resp_json):
+    
+    if "pseudoOuts" in resp_json["rct_signatures"]:
+        Cin = Scalar(0)*dumber25519.G
+        Cout = Scalar(0)*dumber25519.G
+        for i in range(len(resp_json["rct_signatures"]["pseudoOuts"])):
+            Cin += Point(resp_json["rct_signatures"]["pseudoOuts"][i])
+        for i in range(len(resp_json["rct_signatures"]["outPk"])):
+            Cout += Point(resp_json["rct_signatures"]["outPk"][i])
+        Fee = Scalar(resp_json["rct_signatures"]["txnFee"])*dumber25519.H
+
+        res = Cin - Cout - Fee
+        if res != dumber25519.Z:
+            print('Inflation may be happening! Commitments do not match!')
+            with open("error.txt", "a+") as file1:
+                # Writing data to a file
+                file1.write(str(resp_json))
+                file1.write('\nPotential inflation in checking commitments! Please verify what is happening!') 
+            raise Exception('commitments_failure')
+    return 0
+        
+
+
+
+
+
+
 
 def get_borromean_vars(resp_json,ind):
     Ci = resp_json["rctsig_prunable"]["rangeSigs"][ind]["Ci"]
@@ -40,17 +67,36 @@ def get_borromean_vars(resp_json,ind):
     return P1,P2,bbee,bbs0,bbs1
 
 
-def check_Borromean(P1,P2,bbee,bbs0,bbs1):
+def check_Borromean(P1,P2,bbee,bbs0,bbs1,details=0):
     # t1 = time.time()
     LV = ''
+    str_out = '\n'
+    str_out += '--------------------------------------------------------'
+    str_out += '\n'
+    str_out += 'Verifying Borromean signature'
+    str_out += '\n'
     for j in range(64):
         LL = bbee*P1[j] + bbs0[j]*dumber25519.G
         chash = dumber25519.hash_to_scalar(str(LL))
         LV += str(chash*P2[j] + bbs1[j]*dumber25519.G) 
+        str_out += str('LL = ')
+        str_out += str(LL)
+        str_out += '\n'
 
     eeComp = dumber25519.hash_to_scalar(LV)
+    str_out += str('eeComp = ')
+    str_out += str(eeComp)
+    str_out += '\n'
     # print('Time to check Borromean:', (time.time()-t1))
-    return ((bbee - eeComp) == Scalar(0))
+    res = (bbee - eeComp) 
+    str_out += '\n'
+    str_out += str('Result: ')
+    str_out += str(res) 
+    str_out += '\n'
+    str_out += '--------------------------------------------------------'
+    str_out += '\n'
+
+    return res == Scalar(0), str_out
 
 def generate_Borromean(ai,Ci,CiH,b):
     alpha = []
@@ -94,4 +140,5 @@ def generate_Borromean(ai,Ci,CiH,b):
 
 # bbee,bbs0,bbs1 = generate_Borromean(ai,Ci,CiH,b)
 
-# ver = check_Borromean(Ci,CiH,bbee,bbs0,bbs1)
+# ver,str_out = check_Borromean(Ci,CiH,bbee,bbs0,bbs1)
+# print(str_out)

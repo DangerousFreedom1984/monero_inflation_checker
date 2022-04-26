@@ -42,6 +42,8 @@ def point_matrix_mg(pubs,masks,pseudoOuts):
     mg = []
     for i in range(cols):
         mg.append(PointVector([pubs[i],masks[i]-pseudoOuts]))
+        # print('PK['+str(i)+'][0] = ' +str(pubs[i]))
+        # print('PK['+str(i)+'][1] = ' +str(masks[i]-pseudoOuts))
     return mg
 
 def ss_to_scalar(sss,rows,cols):
@@ -65,6 +67,7 @@ def get_members_in_ring(txs,index,cols,rows):
         ring_members[ki] = dumber25519.PointVector(candidates)  
     return ring_members
 
+
 def get_masks_in_ring(resp_json,cols,rows):
     mask_members = key_matrix(cols,rows) 
     for ki in range(len(resp_json['vin'])):
@@ -76,6 +79,7 @@ def get_masks_in_ring(resp_json,cols,rows):
             candidates.append(dumber25519.Point(com_db.get_mask_members(int(indices[rm]),int(amount))))
         mask_members[ki] = dumber25519.PointVector(candidates)  
     return mask_members 
+
 
 def get_pseudo_outs(resp_json,pseudo_index=0):
     if "pseudoOuts" in resp_json["rct_signatures"]:
