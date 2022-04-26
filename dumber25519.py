@@ -282,15 +282,6 @@ class Point:
                 return Point(Q.hex())
 
             except Exception as inst:
-                print('Warning, error in multiplying point: '+str(self) +' by scalar: '+str(y))    # the exception instance
-                print('You should stop and verify this multiplication. It seems outside of the allowed Monero subgroup.')    # the exception instance
-                with open("height.txt", "r") as file1:
-                    # Reading form a file
-                    height = int(file1.read())
-                with open("error.txt", "a+") as file1:
-                    # Writing data to a file
-                    file1.write('\nWarning, error in multiplying point: '+str(self) +' by scalar: '+str(y))
-                    file1.write('\nLast height: '+str(height))
                 # raise Exception('\nError multiplying in the EC curve')
                 # print('Args: ',inst.args)     # arguments stored in .args
                 # print('Inst: ',inst)
@@ -830,4 +821,4 @@ G = Point(Gx % q, Gy % q)
 H = Scalar(8) * Point(cn_fast_hash(str(G)))
 
 # Neutral group element
-Z = Point(0,1)
+Z = Point(0,1) 

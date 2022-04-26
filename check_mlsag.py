@@ -13,6 +13,7 @@ from dumber25519 import Scalar, Point, PointVector, ScalarVector
 import copy
 import multiprocessing
 import check_rangeproofs
+from concurrent.futures import as_completed, ProcessPoolExecutor
 
 
 def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
@@ -22,34 +23,56 @@ def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         pubs = misc_func.get_members_in_ring(txs,i_tx,inputs,rows)
         masks = misc_func.get_masks_in_ring(resp_json,inputs,rows)
         # import ipdb;ipdb.set_trace()
-
 ### Signature index
+        str_ki = []
+        for sig_ind in range(inputs):
+            Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
+            str_ki.append(misc_func.verify_ki(Iv))
         # time_ver = time.time()
+
+        y = []
         for sig_ind in range(inputs):
             # import ipdb;ipdb.set_trace()
             try:
-                y = multiprocessing.Process(target=check_sig_mlsag, args=(resp_json,sig_ind,inputs,rows,pubs,masks,message,details ))
-                y.start()
+                with ProcessPoolExecutor() as exe:
+                    # args = (resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
+                    y.append(exe.submit(check_sig_mlsag,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
+                # y.append(multiprocessing.Process(target=check_sig_mlsag, args=args))
+                # y[sig_ind].start()
                 # check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
                 
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
 
+        str_inp = []
+        for res in as_completed(y):
+            str_inp.append(res.result())
+
+
+
+        x = []
         for sig_ind in range(outputs):
             # import ipdb;ipdb.set_trace()
             try:
-                x = multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, ))
-                x.start()
+                with ProcessPoolExecutor() as exe:
+                    x.append(exe.submit(check_rangeproofs.check_sig_Borromean, resp_json,sig_ind))
+                    # x.append(multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, )))
+                    # x[sig_ind].start()
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
 
+        str_out= []
+        for res in as_completed(x):
+            str_out.append(res.result())
+
         try:
-            check_rangeproofs.check_commitments(resp_json)
+            str_commits = check_rangeproofs.check_commitments(resp_json)
         except:
             print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' commitments check failed')
 
         # print('Total time verification', time.time() - time_ver)
         # print('Total time verification tx', time.time() - time_tx)
+        return str_ki, str_inp,str_out, str_commits
 
 
 def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
@@ -63,6 +86,8 @@ def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
 
     IIv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
+
+
     verified,str_out = check_MLSAG(message,PK, IIv, cc, ss_scalar,details)
     if verified == False:
         print('Signatures dont match! Verify this block')
@@ -72,11 +97,9 @@ def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
             file1.write(str(resp_json))
             file1.write('\nPotential inflation in MLSAG ring signature! Please verify what is happening!') 
         raise Exception('ring_signature_failure')
-    else:
-        if details==1:
-            print(str_out)
 
-    return 0
+    return str_out
+
 
 def generate_MLSAG(m,PK,sk,index):
     rows = len(PK)
@@ -144,8 +167,9 @@ def check_MLSAG(m,PK, I, c, ss,details=0):
     c_old = copy.copy(c)
 
     str_out = '\n'
-    str_out += '--------------------------------------------------------'
-    str_out += '\n'
+    str_out += '--------------------------------------------------------\n'
+    str_out += '-------------Checking MLSAG Ring Signature--------------\n'
+    str_out += '--------------------------------------------------------\n'
     str_out += 'Arguments of check_ring_signature: '
     str_out += 'Prefix: ' + str(m)
     str_out += '\n'

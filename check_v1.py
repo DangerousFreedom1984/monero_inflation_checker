@@ -7,11 +7,13 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 
 import sys
 import com_db
+import misc_func
 from dumber25519 import Scalar, Point, PointVector
 import dumber25519
 import struct
 import numpy as np
 import multiprocessing
+from concurrent.futures import as_completed, ProcessPoolExecutor
 
 
 def get_tx_prefix_hash(resp_json,resp_hex):
@@ -53,7 +55,7 @@ def check_v1(resp_json,resp_hex,sig_ind,tx_prefix,details):
     for rm in range(pubs_count):
         candidates.append(dumber25519.Point(com_db.get_ring_members(int(indices[rm]),int(amount))))
     pubs = dumber25519.PointVector(candidates)  
-    verified,str_out = check_ring_signature(tx_prefix, key_image, pubs, pubs_count, sigr, sigc)
+    verified,str_inp = check_ring_signature(tx_prefix, key_image, pubs, pubs_count, sigr, sigc)
     # print(str_out)
     if verified == False:
         print('Signatures dont match! Verify this block')
@@ -63,24 +65,81 @@ def check_v1(resp_json,resp_hex,sig_ind,tx_prefix,details):
             file1.write('\nPotential inflation in V1 ring signature! Please verify what is happening!') 
             file1.write(str(resp_json))
         raise Exception('ring_signature_failure')
-    else:
-        if details==1:
-            print(str_out)
-    # print(verified)
+
+    return str_inp
 
 def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
 
     rows = len(resp_json['vin'][0]['key']['key_offsets'])
     tx_prefix = get_tx_prefix_hash(resp_json,resp_hex)
-    # import ipdb;ipdb.set_trace()
+
+    str_commits = check_balance(inputs,outputs,resp_json)
+
+    str_ki = []
+    for sig_ind in range(inputs):
+        Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
+        str_ki.append(misc_func.verify_ki(Iv))
+
+
+    y = []
     for sig_ind in range(inputs):
         try:
-            y = multiprocessing.Process(target=check_v1, args=(resp_json,resp_hex,sig_ind,tx_prefix,details, ))
-            y.start()
+            with ProcessPoolExecutor() as exe:
+                y.append(exe.submit(check_v1,resp_json,resp_hex,sig_ind,tx_prefix,details))
+            
         except:
-            print('Verify block_height: '+str(h)+' tx : '+str(txs[index]) + ' ring signature failed')
+            print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
 
-    return 0 
+    str_inp = []
+    for res in as_completed(y):
+        str_inp.append(res.result())
+
+    return str_ki, str_inp, '' , str_commits   
+
+
+    
+
+def check_balance(inputs,outputs,resp_json):
+    str_out = '\n'
+    str_out += '--------------------------------------------------------\n'
+    str_out += '-----------Checking Input and Output Amounts------------\n'
+    str_out += '--------------------------------------------------------'
+    str_out += '\n'
+    Cin = 0.0
+    Cout = 0.0
+
+    for sig_ind in range(inputs):
+        Cin += resp_json["vin"][sig_ind]["key"]["amount"]
+
+    for sig_ind in range(outputs):
+        Cout += resp_json['vout'][sig_ind]['amount']
+
+    Fees = Cin - Cout 
+
+    str_out += 'Cin = '
+    str_out += str(Cin/1e12)
+    str_out += '\n'
+    str_out += 'Cout = '
+    str_out += str(Cout/1e12)
+    str_out += '\n'
+    str_out += 'Fees = '
+    str_out += str(Fees/1e12)
+    str_out += '\n'
+    if Cin > Cout:
+        str_out += 'Everything is fine. Cin > Cout'
+    else:
+        str_out += 'Inflation is clearly happening here!'
+
+
+    str_out += '\n'
+    str_out += '--------------------------------------------------------'
+    str_out += '\n'
+
+    return str_out
+
+
+
+
 
 def ring_sig_correct_original(txs,index,details):
 

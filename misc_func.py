@@ -92,3 +92,21 @@ def get_pseudo_outs(resp_json,pseudo_index=0):
         return Ptemp + Scalar(resp_json["rct_signatures"]["txnFee"])*dumber25519.H
 
 
+def verify_ki(ki):
+
+    str_out = '\n'
+    str_out += '--------------------------------------------------------\n'
+    str_out += '-------------------Checking Key Image-------------------\n'
+    str_out += '--------------------------------------------------------\n'
+    l = 2**252 + 27742317777372353535851937790883648493
+    Z = Point(0,1) 
+    Point_sub = ki * Scalar(l)
+    if Point_sub == Z:
+        str_out += 'Point ' +str(ki)+' belongs to the G subgroup.\n Everything is fine.'
+    else:
+        str_out += 'Point ' +str(ki)+' does not belong to the G subgroup.\n Inflation may be happening!'
+    str_out += '\n--------------------------------------------------------\n'
+
+    return str_out
+
+

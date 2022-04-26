@@ -15,35 +15,59 @@ import multiprocessing
 
 def check_sig_Borromean(resp_json,sig_ind):
     P1,P2,bbee,bbs0,bbs1 = get_borromean_vars(resp_json,sig_ind)
-    if not check_Borromean(P1,P2,bbee,bbs0,bbs1):
+    verified, str_out = check_Borromean(P1,P2,bbee,bbs0,bbs1)
+    if not verified:
         print('Potential inflation in Borromean Signatures! Please verify what is happening!')
         with open("error.txt", "a+") as file1:
             # Writing data to a file
             file1.write(str(resp_json))
             file1.write('\nPotential inflation in Borromean ring signature! Please verify what is happening!') 
         raise Exception('borromean_signature_failure')
-    return 0
+    return str_out
 
 def check_commitments(resp_json):
     
+    str_com = ''
+    str_com += '\n--------------------------------------------------------\n'
+    str_com += '------------------Checking Commitments------------------\n'
+    str_com += '--------------------------------------------------------\n'
     if "pseudoOuts" in resp_json["rct_signatures"]:
         Cin = Scalar(0)*dumber25519.G
         Cout = Scalar(0)*dumber25519.G
+        str_com = ''
         for i in range(len(resp_json["rct_signatures"]["pseudoOuts"])):
             Cin += Point(resp_json["rct_signatures"]["pseudoOuts"][i])
         for i in range(len(resp_json["rct_signatures"]["outPk"])):
             Cout += Point(resp_json["rct_signatures"]["outPk"][i])
         Fee = Scalar(resp_json["rct_signatures"]["txnFee"])*dumber25519.H
 
+        str_com += 'Sum of Cin = ' +str(Cin)
+        str_com += '\n'
+        str_com += 'Sum of Cout = ' +str(Cout)
+        str_com += '\n'
+        str_com += 'Fee = ' +str(Fee)
+        str_com += '\n'
         res = Cin - Cout - Fee
+        str_com += 'Result (Cin - Cout - Fee) = ' +str(res)
+        str_com += '\n'
         if res != dumber25519.Z:
+            str_com += 'Inflation may be happening! Commitments do not match!'
             print('Inflation may be happening! Commitments do not match!')
             with open("error.txt", "a+") as file1:
                 # Writing data to a file
                 file1.write(str(resp_json))
                 file1.write('\nPotential inflation in checking commitments! Please verify what is happening!') 
             raise Exception('commitments_failure')
-    return 0
+        else:
+            str_com += 'Commitments match. No inflation is happening.'
+            
+    else:
+        str_com += 'Commitments must match in RCTTypeFull transactions. Otherwise the MLSAG ring signature would fail.'
+
+    str_com += '\n'
+    str_com += '--------------------------------------------------------'
+    str_com += '\n'
+    return str_com
         
 
 
@@ -71,9 +95,9 @@ def check_Borromean(P1,P2,bbee,bbs0,bbs1,details=0):
     # t1 = time.time()
     LV = ''
     str_out = '\n'
+    str_out += '--------------------------------------------------------\n'
+    str_out += '-----------Checking Borromean Ring Signature------------\n'
     str_out += '--------------------------------------------------------'
-    str_out += '\n'
-    str_out += 'Verifying Borromean signature'
     str_out += '\n'
     for j in range(64):
         LL = bbee*P1[j] + bbs0[j]*dumber25519.G
@@ -91,7 +115,13 @@ def check_Borromean(P1,P2,bbee,bbs0,bbs1,details=0):
     res = (bbee - eeComp) 
     str_out += '\n'
     str_out += str('Result: ')
+    str_out += '\n'
     str_out += str(res) 
+    str_out += '\n'
+    if res == Scalar(0):
+        str_out += 'Borromean verification done. Everything is fine.'
+    else:
+        str_out += 'Borromean verification failed! There may be some inflation happening!'
     str_out += '\n'
     str_out += '--------------------------------------------------------'
     str_out += '\n'

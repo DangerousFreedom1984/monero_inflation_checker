@@ -40,7 +40,11 @@ val = input("Enter your choice: ")
 if val == '1':
     tx_to_check = input('Enter transaction id:')
     try:
-        res = verify_tx.verify_tx(0,[str(tx_to_check)],i_tx=0,details=1)
+        str_ki,str_inp, str_out,str_commit= verify_tx.verify_tx(0,[str(tx_to_check)],i_tx=0,details=1)
+        print(''.join(str_ki))
+        print(''.join(str_inp))
+        print(''.join(str_out))
+        print(''.join(str_commit))
     except KeyError:
         print('Not found. Please enter a valid transaction.')
     except Exception:
