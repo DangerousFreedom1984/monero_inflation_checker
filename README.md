@@ -9,7 +9,7 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 ## TLDR
 
 Minimal Python tools and educational material for checking inflation in Monero.
-You can get more information at [www.moneroinflation.com](https://www.moneroinflation.com/).
+You can get more information at [moneroinflation.com](https://moneroinflation.com/).
 
 ## What is it?
 
