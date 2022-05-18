@@ -14,6 +14,30 @@ import settings
 # username,password = 'username','password'
 # rpc_connection = AuthServiceProxy(service_url='http://{0}:{1}@127.0.0.1:18081/json_rpc'.format(username, password))
 
+# curl http://127.0.0.1:18081/get_transactions -d '{"txs_hashes":["d6e48158472848e6687173a91ae6eebfa3e1d778e65252ee99d7515d63090408"]}' -H 'Content-Type: application/json'
+# curl http://127.0.0.1:18081/json_rpc -d '{"jsonrpc":"2.0","id":"0","method":"get_block","params":{"height":912345}}' -H 'Content-Type: application/json'
+
+
+def get_block(params_block):
+    url = settings.url_str + 'json_rpc'
+    headers = {'Content-Type': 'application/json'}
+    rpc_input = {
+           "method": "get_block",
+           "params": params_block,
+           "decode_as_json": True 
+           }
+    rpc_input.update({"jsonrpc": "2.0", "id": "0"})
+
+# execute the rpc request
+    response = requests.post(
+        url,
+        data=json.dumps(rpc_input),
+        headers=headers)
+
+    resp_json = json.loads(response.json()["result"]["json"])
+
+    return resp_json
+
 
 def get_ring_members(index,amount):
 

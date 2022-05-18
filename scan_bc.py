@@ -35,8 +35,8 @@ def start_scanning(h):
     while h < 1686275:
 
         params_block = {'height':h}
-        block = com_db.rpc_connection.get_block(params_block)
-        block_json = json.loads(block["json"])
+        # block = com_db.rpc_connection.get_block(params_block)
+        block_json = com_db.get_block(params_block)
         txs = block_json['tx_hashes']
         nbr_tx = len(txs)
         print(h)
