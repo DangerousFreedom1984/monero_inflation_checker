@@ -282,6 +282,15 @@ class Point:
                 return Point(Q.hex())
 
             except Exception as inst:
+                print('Warning, error in multiplying point: '+str(self) +' by scalar: '+str(y))    # the exception instance
+                print('You should stop and verify this multiplication. It seems outside of the allowed Monero subgroup.')    # the exception instance
+                with open("height.txt", "r") as file1:
+                    # Reading form a file
+                    height = int(file1.read())
+                with open("error.txt", "a+") as file1:
+                    # Writing data to a file
+                    file1.write('\nWarning, error in multiplying point: '+str(self) +' by scalar: '+str(y))
+                    file1.write('\nLast height: '+str(height))
                 # raise Exception('\nError multiplying in the EC curve')
                 # print('Args: ',inst.args)     # arguments stored in .args
                 # print('Inst: ',inst)
@@ -357,14 +366,28 @@ class PointVector:
         return NotImplemented
 
     # Multiplication
-    def __mul__(self,s):
+    # def __mul__(self,s):
         # PointVector-Scalar: componentwise Point-Scalar multiplication
+        # if isinstance(s,Scalar):
+            # return PointVector([self.points[i]*s for i in range(len(self.points))])
+        # PointVector-ScalarVector: Hadamard product
+        # if isinstance(s,ScalarVector) and len(self.points) == len(s.scalars):
+            # return PointVector([s[i]*self[i] for i in range(len(self))])
+        # return NotImplemented
+
+
+    # multiplying a PointVector by a scalar or ScalarVector or Hadamard
+    def __mul__(self,s):
         if isinstance(s,Scalar):
             return PointVector([self.points[i]*s for i in range(len(self.points))])
-        # PointVector-ScalarVector: Hadamard product
-        if isinstance(s,ScalarVector) and len(self.points) == len(s.scalars):
-            return PointVector([s[i]*self[i] for i in range(len(self))])
-        return NotImplemented
+        if isinstance(s,ScalarVector):
+            return multiexp(s,self)
+        if isinstance(s,PointVector):
+            if not len(self.points) == len(s.points):
+                raise IndexError
+            return PointVector([self.points[i] + s.points[i] for i in range(len(self.points))])
+        raise TypeError
+
 
     def __rmul__(self,s):
         # Scalar-PointVector

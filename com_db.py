@@ -11,16 +11,13 @@ import requests
 import settings
 
 # Execute on monerod: ./monerod --rpc-bind-port 18081 --rpc-login username:password
-username,password = 'username','password'
-rpc_connection = AuthServiceProxy(service_url='http://{0}:{1}@127.0.0.1:18081/json_rpc'.format(username, password))
+# username,password = 'username','password'
+# rpc_connection = AuthServiceProxy(service_url='http://{0}:{1}@127.0.0.1:18081/json_rpc'.format(username, password))
 
 
 def get_ring_members(index,amount):
 
-    if settings.node_conn == 0:
-        url = 'http://node.sethforprivacy.com:18089/get_outs'
-    else:
-        url = "http://localhost:18081/get_outs"
+    url = settings.url_str + 'get_outs'
     headers = {'Content-Type': 'application/json'}
     rpc_input = {
            "outputs": [{
@@ -41,10 +38,7 @@ def get_ring_members(index,amount):
 
 def get_mask_members(index,amount):
 
-    if settings.node_conn == 0:
-        url = 'http://node.sethforprivacy.com:18089/get_outs'
-    else:
-        url = "http://localhost:18081/get_outs"
+    url = settings.url_str + 'get_outs'
     headers = {'Content-Type': 'application/json'}
     rpc_input = {
            "outputs": [{
@@ -65,10 +59,7 @@ def get_mask_members(index,amount):
 
 def get_tx(txs,index):
 
-    if settings.node_conn == 0:
-        url = 'http://node.sethforprivacy.com:18089/get_transactions'
-    else:
-        url = "http://localhost:18081/get_transactions"
+    url = settings.url_str + 'get_transactions'
     headers = {'Content-Type': 'application/json'}
     rpc_input = {
            "txs_hashes": txs, "decode_as_json": True 

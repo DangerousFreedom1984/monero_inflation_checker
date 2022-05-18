@@ -9,4 +9,11 @@ import copy
 
 def node_choice(choice):
     global node_conn
+    global url_str 
+
     node_conn = copy.copy(choice)
+
+    if node_conn == 0:
+        url_str = 'http://node.sethforprivacy.com:18089/'
+    else:
+        url_str = 'http://localhost:18081/'
