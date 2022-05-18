@@ -34,6 +34,7 @@ def start_scanning(h):
 
     while h < 1686275:
 
+        write_height(str(h))
         params_block = {'height':h}
         # block = com_db.rpc_connection.get_block(params_block)
         block_json = com_db.get_block(params_block)
@@ -48,8 +49,6 @@ def start_scanning(h):
 
         h += 1
 
-        if h%10==0:
-            write_height(str(h))
 
     print('Total time', time.time() - initial_time)
 
