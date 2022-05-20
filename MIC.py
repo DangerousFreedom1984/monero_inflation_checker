@@ -94,6 +94,17 @@ else:
             scan_bc.write_height(str(h))
         scan_bc.start_scanning(h)
         # scan_bc.scan_subgroup(h)
+
+    if sys.argv[1]=='scan_subgroup':
+        settings.node_choice(1)
+        print('Continue scanning...')
+        # import ipdb;ipdb.set_trace()
+        if exists('height.txt'):
+            h = int(scan_bc.read_height())
+        else:
+            h = 0
+            scan_bc.write_height(str(h))
+        scan_bc.scan_subgroup(h)
     else:
         print('Unknow argument')
 
