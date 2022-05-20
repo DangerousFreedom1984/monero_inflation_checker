@@ -20,8 +20,7 @@ def check_group(h,resp_json,inputs,outputs):
                 print('Point ' +str(Iv)+' does not belong to the prime subgroup.\n Inflation may be happening!')
                 with open("points_subgroup.txt", "a+") as file1:
                     # Writing data to a file
-                    file1.write('\nPoint ' +str(Iv)+' does not belong to the prime subgroup.\n Inflation may be happening!')
-                    file1.write('\nCheck height: ' + str(h))
+                    file1.write('\n'+str(Iv)+' '+str(h)+' key_image')
 
         for sig_ind in range(outputs):
             Iv = Point(resp_json["vout"][sig_ind]["target"]["key"])
@@ -30,5 +29,4 @@ def check_group(h,resp_json,inputs,outputs):
                 print('Point ' +str(Iv)+' does not belong to the prime subgroup.\n Inflation may be happening!')
                 with open("points_subgroup.txt", "a+") as file1:
                     # Writing data to a file
-                    file1.write('\nPoint ' +str(Iv)+' does not belong to the prime subgroup.\n Inflation may be happening!')
-                    file1.write('\nCheck height: ' + str(h))
+                    file1.write('\n'+str(Iv)+' '+str(h)+' stealth_address')
