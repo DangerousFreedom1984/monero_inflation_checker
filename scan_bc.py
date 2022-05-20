@@ -52,3 +52,27 @@ def start_scanning(h):
 
     print('Total time', time.time() - initial_time)
 
+def scan_subgroup(h):
+    initial_time = time.time()
+
+    while h < 2627722:
+
+        write_height(str(h))
+        params_block = {'height':h}
+        # block = com_db.rpc_connection.get_block(params_block)
+        block_json = com_db.get_block(params_block)
+        txs = block_json['tx_hashes']
+        nbr_tx = len(txs)
+        print(h)
+        # print(nbr_tx)
+
+        for i_tx in range(nbr_tx):
+            # import ipdb;ipdb.set_trace()
+            # verify_tx.verify_tx(h,txs,i_tx,0)
+            verify_tx.verify_subgroup(h,txs,i_tx,0)
+
+
+        h += 1
+
+
+    print('Total time', time.time() - initial_time)

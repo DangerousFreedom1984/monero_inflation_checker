@@ -108,4 +108,15 @@ def verify_ki(ki):
 
     return str_out
 
+def verify_point(P):
+
+    res = dumber25519.mul_verify_group(P,Scalar(1))
+    # import ipdb;ipdb.set_trace()
+    if res == 'ok':
+        # print('Point ' +str(P)+' belongs to the G subgroup.\n Everything is fine.')
+        return True
+    else:
+        print('Point ' +str(P)+' does not belong to the prime subgroup.\n Inflation may be happening!')
+        return False
+
 

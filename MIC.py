@@ -36,7 +36,8 @@ if n == 1:
 
     print('1. Verify a specific transaction')
     print('2. Scan blockchain')
-    print('3. Quit')
+    print('3. Scan subgroup points')
+    print('4. Quit')
 
 
     val = input("Enter your choice: ")
@@ -66,6 +67,16 @@ if n == 1:
         scan_bc.start_scanning(h)
 
     elif val == '3':
+        print('Continue scanning...')
+        # import ipdb;ipdb.set_trace()
+        if exists('height.txt'):
+            h = int(scan_bc.read_height())
+        else:
+            h = 0
+            scan_bc.write_height(str(h))
+        scan_bc.scan_subgroup(h)
+
+    elif val == '4':
         print('Bye')
 
     else:
@@ -82,6 +93,7 @@ else:
             h = 0
             scan_bc.write_height(str(h))
         scan_bc.start_scanning(h)
+        # scan_bc.scan_subgroup(h)
     else:
         print('Unknow argument')
 

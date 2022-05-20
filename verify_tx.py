@@ -9,6 +9,7 @@ import misc_func
 import check_v1
 import check_mlsag
 import check_rangeproofs
+import check_subgroup
 
 import json
 #from varint import encode as to_varint
@@ -57,3 +58,17 @@ def verify_tx(h,tx_to_check,i_tx=0,details=0):
 
     return str_ki,str_inp, str_out,str_commit
 
+def verify_subgroup(h,tx_to_check,i_tx=0,details=0):
+
+    # import ipdb;ipdb.set_trace()
+    if len(tx_to_check)>=1:
+        txs = tx_to_check
+        resp_json,resp_hex = com_db.get_tx(tx_to_check,i_tx) 
+    else:
+        return 0
+
+    inputs = len(resp_json['vin'])
+    outputs = len(resp_json['vout'])
+
+    check_subgroup.check_group(h,resp_json,inputs,outputs)
+    return 0
