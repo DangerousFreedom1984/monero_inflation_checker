@@ -331,6 +331,29 @@ def mult_slow(P,y):
             Q = P.__add__(Q)
         return Q
 
+def mul_verify_group(P,y):
+    # Point-Scalar: scalar multiplication
+    if isinstance(y,Scalar):
+        try:
+            sk = binascii.a2b_hex(str(y).encode('utf-8'))
+            pk = binascii.a2b_hex(str(P).encode('utf-8'))
+            Q = nacl.bindings.crypto_scalarmult_ed25519_noclamp(sk,pk)
+            # return Point(nacl.bindings.crypto_scalarmult_ed25519_noclamp(binascii.a2b_hex(str(y).encode('utf-8')),binascii.a2b_hex(str(self).encode('utf-8'))).hex())
+            return 'ok'
+
+        except Exception as inst:
+            print('Warning, error in multiplying point: '+str(P) +' by scalar: '+str(y))    # the exception instance
+            print('You should stop and verify this multiplication. It seems outside of the allowed Monero subgroup.')    # the exception instance
+            with open("height.txt", "r") as file1:
+                # Reading form a file
+                height = int(file1.read())
+            with open("error.txt", "a+") as file1:
+                # Writing data to a file
+                file1.write('\nWarning, error in multiplying point: '+str(P) +' by scalar: '+str(y))
+                file1.write('\nLast height: '+str(height))
+            return 'failed'
+
+
 # A vector of Points with superpowers
 class PointVector:
     def __init__(self,points=None):

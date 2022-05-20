@@ -98,10 +98,9 @@ def verify_ki(ki):
     str_out += '--------------------------------------------------------\n'
     str_out += '-------------------Checking Key Image-------------------\n'
     str_out += '--------------------------------------------------------\n'
-    l = 2**252 + 27742317777372353535851937790883648493
-    Z = Point(0,1) 
-    Point_sub = ki * Scalar(l)
-    if Point_sub == Z:
+    res = dumber25519.mul_verify_group(ki,Scalar(1))
+    # import ipdb;ipdb.set_trace()
+    if res != 'failed':
         str_out += 'Point ' +str(ki)+' belongs to the G subgroup.\n Everything is fine.'
     else:
         str_out += 'Point ' +str(ki)+' does not belong to the G subgroup.\n Inflation may be happening!'
