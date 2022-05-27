@@ -14,6 +14,7 @@ import copy
 import multiprocessing
 import check_rangeproofs
 from concurrent.futures import as_completed, ProcessPoolExecutor
+import settings
 
 
 
@@ -98,42 +99,22 @@ def generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero,Seed=None):
     mu_C = hash_to_scalar(str_agg1+strP+strC_nonzero+str(I)+str(D)+str(C_offset))
     s = [None]*n
 
-    import ipdb;ipdb.set_trace()
-    # alpha = random_scalar()
-    alpha= Scalar('164935f9454e3915b324f2f7b922fb4f4e75031aa479586b1006801202842a0b')
-
-    # Scalars are either random (seed is None) or hash-constructed
-    # if seed is None:
-        # s = [random_scalar() for _ in range(n)]
-    # else:
-        # s = [hash_to_scalar('CLSAG_scalar',seed,I,i) for i in range(n)]
+    alpha = random_scalar()
 
     # Private index
     aG = dumber25519.G*alpha
     aH = hash_to_point(str(P[l]))*alpha
     c = hash_to_scalar(str_round+strP+strC_nonzero+str(C_offset)+str(msg)+str(aG)+str(aH))
 
-    print('c: ')
-    print(c)
    
     i = (l+1) % n
     if (i==0):
         c1 = copy.copy(c)
 
-    s[2] = Scalar('b4ef81df870d75062d445f753d3464dc5827d367c9db019637b5f93d35cae802')
-    s[3] = Scalar('e3034af765ee80f8cb7022c2507ba91a7d75c56adfaf0f4e519ffe88af1e7107')
-    s[4] = Scalar('9bd82de4ee5c7e5665a71e090d58ea5b7e77e94e6876f66854f91d327737fa0d')
-    s[5] = Scalar('1e03dfcdd0698f168dfe8724916dbf2a875de6390eeee7048734b7104aa68b04')
-    s[6] = Scalar('3ea13d823dc970749ddc636fa286efb79fa8769901e474307797697ad0a22602')
-    s[7] = Scalar('491d0e8a6b41241035abd072247580f69807c0ecf65e8c7a7d2728b110f0d90b')
-    s[8] = Scalar('d542c8e33da51dd40de744b975c48b32935c618c70d22fbf4804811490553b0c')
-    s[9] = Scalar('9b03cfa88bf24d2d239f99ba9dd87f1c4cc3d759e29c6e9329fa42c08bef400c')
-    s[10] = Scalar('1e41e3e8286d0b1abe82e120fa8f7229b6726056726c429a5d0d33a51f508a06')
-    s[0] = Scalar('0b3e2523e53e4998dc6743eae59eb6c427f6027f3b83ba21c9746c00ad4ec60c')
 
 
     while (i!=l):
-        # s[i] = random_scalar()
+        s[i] = random_scalar()
         cp = c*mu_P
         cc = c*mu_C
 
@@ -141,123 +122,106 @@ def generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero,Seed=None):
 
         R = s[i]*hash_to_point(str(P[i])) + cp*I + cc*D*Scalar(8)
 
-        print('P: ')
-        print(P[i])
-
-        print('C: ')
-        print(C[i])
-
-        print('Hi :')
-        print(hash_to_point(str(P[i])))
-
-        print('R: ')
-        print(R)
-
-        print('L: ')
-        print(L)
-                    # str_round+strP+strC_nonzero+str(C_offset)+str(msg)
         str_hash = str_round+strP+strC_nonzero+str(C_offset)+str(msg)
         str_hash += str(L) + str(R)
 
         c = hash_to_scalar(str_hash)
 
-        print('c: ')
-        print(c)
-
         i = (i+1) % n
         if i==0:
             c1 = copy.copy(c)
 
-
-    import ipdb;ipdb.set_trace()
-    
     s[l] = alpha - c*(p*mu_P+mu_C*z)
-
-
-
-        
-
-    # Decoy indices
-    # if n > 1:
-        # for i in range(l+1,l+n):
-            # i = i % n
-            # L = G*s[i] + P[i]*(h[i]*mu_P) + C[i]*(h[i]*mu_C)
-            # R = hash_to_point(P[i])*s[i] + I*(h[i]*mu_P) + D*(h[i]*mu_C)
-            # h[(i+1) % n] = hash_to_scalar('CLSAG_round',P,C,M,L,R)
-
-    # # Final scalar computation
-    # s[l] = alpha - h[l]*(mu_P*p + mu_C*z)
-
-    # # Assemble the signature
-    # sig = Signature()
-    # sig.h0 = h[0]
-    # sig.s = s
-    # sig.I = I
-    # sig.D = D
 
     return s,I,D
 
 
-
-
-def generate_MLSAG(m,PK,sk,index):
-    rows = len(PK)
-    cols = len(PK[0])
-    # I should check some stuff here like dimensions
-    msg0 = ''
-    msg0 += str(m)
-
-    alpha0 = dumber25519.random_scalar()
-    aG0 = alpha0 * dumber25519.G
-    aHP = alpha0 * dumber25519.hash_to_point(str(PK[index][0]))
-    msg0 += str(PK[index][0])
-    msg0 += str(aG0)
-    msg0 += str(aHP)
-
-    alpha1 = dumber25519.random_scalar()
-    aG1 = alpha1 * dumber25519.G
-    msg0 += str(PK[index][1])
-    msg0 += str(aG1)
-
-    I0 = sk[0]*dumber25519.hash_to_point(str(PK[index][0]))
-
-    # import ipdb;ipdb.set_trace()
-    c_old = dumber25519.hash_to_scalar(msg0)
-    i = (index + 1) % rows
-    if i==0:
-        cc = copy.copy(c_old)
+def check_CLSAG(msg, s, I, c1, D_aux, pubs, masks, C_offset):
     
-    ss = misc_func.scalar_matrix(rows,cols,0) 
+    domain0 = 'CLSAG_agg_0' 
+    domain1 = 'CLSAG_agg_1' 
+    domain_round = 'CLSAG_round'
 
-    while (i!=index):
-        # print('i: ',i)
-        msg = ''
-        msg += str(m)
+    str0 = str(Scalar(0))
+    str_agg0_aux = domain0.encode("utf-8").hex()
+    str_aux = str0[len(str_agg0_aux):]
+    str_agg0 = str_agg0_aux + str_aux
 
-        ss[i][0] = dumber25519.random_scalar() 
-        ss[i][1] = dumber25519.random_scalar() 
+    str_agg1_aux = domain1.encode("utf-8").hex()
+    str_aux = str0[len(str_agg1_aux):]
+    str_agg1 = str_agg1_aux + str_aux
 
-        L1 = ss[i][0]*dumber25519.G + c_old*PK[i][0]
-        R = ss[i][0]*dumber25519.hash_to_point(str(PK[i][0]))+c_old*I0
-        msg += str(PK[i][0])
-        msg += str(L1)
-        msg += str(R)
+    str_round_aux = domain_round.encode("utf-8").hex()
+    str_aux = str0[len(str_round_aux):]
+    str_round = str_round_aux + str_aux
 
-        L2 = ss[i][1]*dumber25519.G + c_old*PK[i][1]
-        msg += str(PK[i][1])
-        msg += str(L2)
+    # inv8 = Scalar(8).invert()
+    # D = D_aux*inv8
+    D = copy.copy(D_aux)
+    # D = Scalar(8)*D_aux
 
-        c_old = dumber25519.hash_to_scalar(msg)
-        # print(c_old)
-        i = (i+1)%rows
-        if i==0:
-            cc = copy.copy(c_old)
+    strPubs = ''
+    for i in range(len(pubs)):
+        strPubs += str(pubs[i])
 
-    # import ipdb;ipdb.set_trace()
-    ss[index][0] = alpha0 - c_old*sk[0]
-    ss[index][1] = alpha1 - c_old*sk[1] 
+    strMasks = ''
+    for i in range(len(masks)):
+        strMasks += str(masks[i])
 
-    return ss, cc, I0
+    # Now generate the signature
+    mu_P = hash_to_scalar(str_agg0+strPubs+strMasks+str(I)+str(D)+str(C_offset))
+    mu_C = hash_to_scalar(str_agg1+strPubs+strMasks+str(I)+str(D)+str(C_offset))
+
+    print('mu_P')
+    print(mu_P)
+
+    print('mu_C')
+    print(mu_C)
+
+
+    # c = hash_to_scalar(str_round+strPubs+strMasks+str(C_offset)+msg)
+    c = copy.copy(c1)
+
+    print('c: ')
+    print(c)
+
+    i = 0
+    n = len(pubs)
+
+    while (i<n):
+        cp = c*mu_P
+        cc = c*mu_C
+
+        L = s[i]*dumber25519.G + cp*pubs[i]+ cc*(masks[i] - C_offset )
+
+        R = s[i]*hash_to_point(str(pubs[i])) + cp*I + cc*D*Scalar(8)
+
+        print('L: ')
+        print(L)
+
+        print('R: ')
+        print(R)
+
+        # import ipdb;ipdb.set_trace()
+
+        str_hash = str_round+strPubs+strMasks+str(C_offset)+msg
+        str_hash += str(L) + str(R)
+
+        c = hash_to_scalar(str_hash)
+        i = i+1
+
+        print('c: ')
+        print(c)
+
+    c_final = c - c1
+
+    import ipdb;ipdb.set_trace()
+
+    return c_final
+
+
+
+
 
 
 def check_MLSAG(m,PK, I, c, ss,details=0):
@@ -343,6 +307,40 @@ def check_MLSAG(m,PK, I, c, ss,details=0):
     str_out += '\n'
     return res, str_out
 
+def get_tx_hash_clsag(resp_json,resp_hex):
+    extra_hex = ''
+    for i in range(len(resp_json['extra'])):
+        extra_hex += format(resp_json["extra"][i],'02x')
+
+    outPk = resp_json["rct_signatures"]["outPk"][-1]
+
+    # import ipdb;ipdb.set_trace()
+    L,R = '',''
+    bp_A = resp_json["rctsig_prunable"]["bp"][0]["A"]
+    bp_S = resp_json["rctsig_prunable"]["bp"][0]["S"]
+    bp_T1 = resp_json["rctsig_prunable"]["bp"][0]["T1"]
+    bp_T2 = resp_json["rctsig_prunable"]["bp"][0]["T2"]
+    bp_taux = resp_json["rctsig_prunable"]["bp"][0]["taux"]
+    bp_mu = resp_json["rctsig_prunable"]["bp"][0]["mu"]
+    for i in range(len(resp_json["rctsig_prunable"]["bp"][0]["L"])):
+        L += str(resp_json["rctsig_prunable"]["bp"][0]["L"][i])
+    for i in range(len(resp_json["rctsig_prunable"]["bp"][0]["R"])):
+        R += str(resp_json["rctsig_prunable"]["bp"][0]["R"][i])
+    bp_a = resp_json["rctsig_prunable"]["bp"][0]["a"]
+    bp_b = resp_json["rctsig_prunable"]["bp"][0]["b"]
+    bp_t = resp_json["rctsig_prunable"]["bp"][0]["t"]
+
+
+    ph1 = resp_hex.split(extra_hex)[0] + extra_hex
+    ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0]+outPk
+    ph3 = bp_A+bp_S+bp_T1+bp_T2+bp_taux+bp_mu+L+R+bp_a+bp_b+bp_t
+
+
+    ph1_hash = dumber25519.cn_fast_hash(ph1)
+    ph2_hash = dumber25519.cn_fast_hash(ph2)
+    ph3_hash = dumber25519.cn_fast_hash(ph3)
+
+    return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 
 def get_tx_hash_mlsag(resp_json,resp_hex):
     extra_hex = ''
@@ -376,7 +374,74 @@ C = PointVector([ Point('de50d6aabc7bd68eff67bded347d494140d8ed0c12a6785a0ba3dad
 C_nonzero = PointVector([ Point('ef056230343b70feb26fc4c3cde31c96ec6481f9815893240c72cf2e55a20678'),Point('0fcba4f8a5794d45c0bb0c9bae361857285a05a72704f0af27319dfbb02e5868'),Point('0b77f1a2395294b40cf5a3b1d7e1d9e3615e3262ca2e2cd5e8e4c975d01d4ff4'),Point('94fe96babf8986539db8ab69a219733c5280d5d2b5d7d64af70f04fb66eb402e'),Point('b308f21f6749df01857bd39829f1c84beed823a569577a78f447f1cbdd7f9852'),Point('b8178cc7aff509d42872eec29e0f089c2128f9a2e7fd3a0494e20cad6216cf47'),Point('d148d43672a326e22a2374d9c865cabfbeb555d7cb7e5eb9899c9c4fecb05936'),Point('cd478010293e2f298f3b21243e14fdb4f1806ae030b3c3a65585e60ad2c61a56'),Point('166d0ebf687ccb8a459c407261be109304eeef9f89e8cb6bd40b5f8515f9c128'),Point('eb90be4a8d3810d05113e2eec14bb7e0c3d244a974a1732e19c81716042a7984'),Point('43f3aaf9d2f142621661985916cd8d7e7e9c1c9eeaefdbd3fab582520c471c77'),])
  
 
+# sig = generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero)
+
+tx_to_check = ['c39652b79beb888464525fee06c3d078463af5b76d493785f8903cae93405603']
+i_tx = 0
+settings.node_choice(1)
+
+resp_json,resp_hex = com_db.get_tx(tx_to_check,i_tx) 
+inputs = len(resp_json['vin'])
+outputs = len(resp_json['vout'])
+
+rows = len(resp_json['vin'][0]['key']['key_offsets'])
+msg = get_tx_hash_clsag(resp_json,resp_hex)
+pubs_aux = misc_func.get_members_in_ring(tx_to_check,i_tx,inputs,rows)
+masks_aux = misc_func.get_masks_in_ring(resp_json,inputs,rows)
+
+pubs = pubs_aux[0]
+masks = masks_aux[0] 
+
+sig_ind = 0
+C_offset = misc_func.get_pseudo_outs(resp_json,sig_ind) #C_offset
+# sss = resp_json["rctsig_prunable"]["MGs"][sig_ind]["ss"]
+# ss_scalar = misc_func.ss_to_scalar(sss,rows,2)
+
+
+ss = resp_json["rctsig_prunable"]["CLSAGs"][0]["s"]
+s_scalar = misc_func.s_to_scalar(ss,rows)
+
+
+c1 = Scalar(resp_json["rctsig_prunable"]["CLSAGs"][0]["c1"])
+D = Point(resp_json["rctsig_prunable"]["CLSAGs"][0]["D"])
+
+
+# PK = misc_func.point_matrix_mg(pubs[sig_ind],masks[sig_ind],pseudoOuts)
+
+I = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
+
+
+
+
+
+
+# msg = str('0192b64f0541c5c1e91eb1740268b5cb4ca22f37257b7722dd45701332a872d8')
+# C_offset = Point('12ce06159712f9c3c61b400ab11dbb6da7d147020e1ba5135bcacb93948d35d3')
+# c1 = Scalar('7f4d67bdba16fee1012e3dfbb1760828ea5b40ed4baffb34ecf0c57a8daf5002')
+# D = Point('1eca0d6dc70eced9fee152a618b9fce6e44f392d312eb6cfc7f63fc5d8b8b75f')
+# I = Point('f6dbf4e2a80234679156ee291f3167398d38659ee0301e0a4702f1f6de8d57a8')
+# pubs = PointVector([ Point('0e87fdc5aaf234b06ce27df56820bc4d352094f133d1be2103ebc85957c23181'),Point('f2ca063c3ea5158768a50b2dd2be7e7c63b4fc9b5129425d090d9c8e3996a981'),Point('e10debc98fa068ed75d814e42a72d2ea741a4415542bdab4d0505d9023ffae8e'),Point('e9a72d4371eee456d348997cc0e2448e40bafefea867fb4759be2739e12b6539'),Point('b2624fb64d96daea36003195cbf5e72303da96a783eb295b2508bafc75d1efb9'),Point('fc6ba92fc97235e05c1d9ee3854e7b0573adae020ee1f17e1873d95553364b4f'),Point('b818bcd216c0e8265abcc5ba28097b2a9241aae108dae0efe072c2fa54f26505'),Point('2c4d218545587eb91103013b004e393774246fafc96e5a00af732797f7712960'),Point('a7ac57d0206de53d1f5c1198fcc51e73e01533bdac028ac77fd1ce6ebd6df905'),Point('22780c26242c17808b20ed908b2b44a4bac82c4fafb989866c6037eb14fc30cb'),Point('68772cbe43a16f393b6a73f5967ccb4fbb3bac4a68b837c0a388a73393229c40'),])
+ 
+# masks = PointVector([ Point('1c0b54de0806997120cf1f91a322ec71bd1c44be16229d5084cf71df59df2302'),Point('9f947905521d03ffc4a780fda265de395a8d90269506ae7387c1a625f596b704'),Point('7536f19a46e201e39210ed1011c4c920ea5c3fb380a75ece774c8eefbb5db358'),Point('f32088ee5389fad652c57ce0c4b9882335572cf8e3f4b4c3a0ab49bbcefb0e2c'),Point('c2a4cd3bd86ae7fa0343a3d6fead9c40d98e973c928bf25c4b368772838b2f81'),Point('ce817fdd48cfd3c96d9c01fb854e2544591cbdbff0a1a903d99eb660ceb9bb90'),Point('c6cc795b45b0fc76730cf213ee34b0a4fd413d93216f612a3044bf28221cfb56'),Point('8aa3f384a082e85cb7f62d34500f9d35e5506217fef176f0f2bc4d98d13ccae9'),Point('c97c77202a47e3d022e54fb9f29f5b2b894a3637afc725575d838239c3261beb'),Point('48886bad3b8e6ceb390173c2576257fa5692b566aee1812908d07fd0f7846612'),Point('afe5d170a9add73e11f9bbeaf677cae8cd327c415d59a043825929fcf1baee40'),])
+ 
+# n = 11
+# s = [None]*n
+# s[0] = Scalar('1d68b17ab9bfe8a3222bfa83b02018bcd264bf2fc97194ba41025c1c74f7190a')
+# s[1] = Scalar('888399bff66efc1c47b5d75383d4a790c2bb1e31edcae60eaa81f18a3f3bf905')
+# s[2] = Scalar('6e897cf6b50c7755f41d064079e07ccd112eb938bebe1d42931dfe77e36e890f')
+# s[3] = Scalar('b687f9ac9d1f9da8567bfaaf116b42f21996a5523c61dfb1bbdaa8b23e904a09')
+# s[4] = Scalar('940349dea9754429399f9d87cf18ca28261485744fb0521ecab9a0e0011e110a')
+# s[5] = Scalar('3e16f8228a011d570a46acf4fa9817d8d44441cf39a127a100dc1c5d14383e08')
+# s[6] = Scalar('afbe5b4a55d34a81a78a935e750acca22cb754cedea81068819c1cdafe08930e')
+# s[7] = Scalar('f4917f85a59136c3b4e69e149fd8e6c0d06842b3459f6ee7cd41e674429cf10f')
+# s[8] = Scalar('00d1f52a87fc1acd7ed416630f15ea8fdfb0b1e320e12dc32c8a950384d03a0a')
+# s[9] = Scalar('b787d3ef045e282d3011a26c7a4ea8e02b22fd96fbd4b9e4c01337850dcf6206')
+# s[10] = Scalar('fa5cb10a9e9aca3047f668155a5628a57ab9b1570dc501952c4c645960e5f402')
+
+# s_scalar = copy.copy(s)
+
 import ipdb;ipdb.set_trace()
-sig = generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero)
+check_CLSAG(msg, s_scalar, I, c1, D, pubs, masks, C_offset)
+
 
 

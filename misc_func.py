@@ -53,6 +53,11 @@ def ss_to_scalar(sss,rows,cols):
             ss_scalar[d1][d2] = Scalar(sss[d1][d2])
     return ss_scalar
 
+def s_to_scalar(ss,rows):
+    s_scalar = scalar_matrix(rows,0,0)
+    for d1 in range(rows):
+        s_scalar[d1] = Scalar(ss[d1])
+    return s_scalar
 
 def get_members_in_ring(txs,index,cols,rows):
     resp_json,resp_hex = com_db.get_tx(txs,index)
@@ -76,6 +81,9 @@ def get_masks_in_ring(resp_json,cols,rows):
         pubs_count = len(resp_json["vin"][ki]["key"]["key_offsets"])
         candidates = []
         for rm in range(pubs_count):
+            # import ipdb;ipdb.set_trace()
+            # print(int(indices[rm]))
+            # print(int(amount))
             candidates.append(dumber25519.Point(com_db.get_mask_members(int(indices[rm]),int(amount))))
         mask_members[ki] = dumber25519.PointVector(candidates)  
     return mask_members 
