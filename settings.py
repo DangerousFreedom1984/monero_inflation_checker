@@ -7,6 +7,7 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import copy
 
 
+url_str = 'http://localhost:18081/'
 def node_choice(choice):
     global node_conn
     global url_str 
