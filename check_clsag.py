@@ -32,7 +32,6 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         str_ki.append(misc_func.verify_ki(Iv))
     # time_ver = time.time()
 
-    # import ipdb;ipdb.set_trace()
     y = []
     for sig_ind in range(inputs):
         try:
@@ -83,7 +82,7 @@ def check_sig_clsag_bp1(resp_json,sig_ind,inputs,rows,pubs,masks,message,details
     pubs_current = pubs[sig_ind]
     masks_current = masks[sig_ind] 
 
-    C_offset = misc_func.get_pseudo_outs(resp_json,sig_ind) #C_offset
+    C_offset = misc_func.get_pseudo_outs_bp1(resp_json,sig_ind) #C_offset
     ss = resp_json["rctsig_prunable"]["CLSAGs"][sig_ind]["s"]
     s_scalar = misc_func.s_to_scalar(ss,rows)
     c1 = Scalar(resp_json["rctsig_prunable"]["CLSAGs"][sig_ind]["c1"])
@@ -239,9 +238,6 @@ def check_CLSAG(msg, s, c1, D_aux,I, P, C_nonzero, C_offset,details):
 
     c = copy.copy(c1)
 
-    print('c: ')
-    print(c)
-
     i = 0
     n = len(P)
 
@@ -257,9 +253,6 @@ def check_CLSAG(msg, s, c1, D_aux,I, P, C_nonzero, C_offset,details):
 
         c = hash_to_scalar(str_hash)
         i = i+1
-
-        print('c: ')
-        print(c)
 
     c_final = c - c1
 
