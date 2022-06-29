@@ -8,6 +8,7 @@ import com_db
 import misc_func
 import check_v1
 import check_mlsag
+import check_clsag
 import check_rangeproofs
 
 import json
@@ -47,8 +48,10 @@ def verify_tx(h,tx_to_check,i_tx=0,details=0):
         type_tx = resp_json["rct_signatures"]["type"]
         if type_tx == 1 or type_tx == 2: #RCTTypeSimple and RCTTypeFull
             str_ki, str_inp, str_out, str_commit = check_mlsag.ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
-        elif type_tx == 3: #RCTTypeBulletproof
+        elif type_tx == 3 or type_tx == 4: #RCTTypeBulletproof and RCTTypeBulletproof2
             str_ki, str_inp, str_out, str_commit = check_mlsag.ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
+        elif type_tx == 5: #RCTTypeCLSAG
+            str_ki, str_inp, str_out, str_commit = check_clsag.ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
 
         elif type_tx == 0:
             amount = 0
