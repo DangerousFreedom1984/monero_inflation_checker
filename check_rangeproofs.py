@@ -198,9 +198,6 @@ def check_commitments_bp1(resp_json):
             file1.write('\nPotential inflation in checking commitments! Please verify what is happening!') 
         raise Exception('commitments_failure')
             
-    else:
-        str_com += 'Commitments must match in RCTTypeBulletproof transactions. Otherwise the MLSAG ring signature would fail.'
-
     str_com += '\n'
     str_com += '--------------------------------------------------------'
     str_com += '\n'
@@ -349,7 +346,7 @@ def check_bp1(proofs):
         y1 = (t-(z*ip1y+k))*weight_y
 
 
-        for j in range(M):
+        for j in range(len(V)):
             scalars.append(z**(j+2)*weight_y)
             points.append(V[j]*Scalar(8))
         scalars.append(x*weight_y)

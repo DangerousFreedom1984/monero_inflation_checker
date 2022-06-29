@@ -99,6 +99,14 @@ def get_pseudo_outs(resp_json,pseudo_index=0):
             Ptemp += Point(resp_json["rct_signatures"]["outPk"][i])   
         return Ptemp + Scalar(resp_json["rct_signatures"]["txnFee"])*dumber25519.H
 
+def get_pseudo_outs_bp1(resp_json,pseudo_index=0):
+    if "pseudoOuts" in resp_json["rctsig_prunable"]:
+        pseudos = Point(resp_json["rctsig_prunable"]["pseudoOuts"][pseudo_index])
+        return pseudos
+    # Ptemp = Scalar(0)*dumber25519.G
+    # for i in range(len(resp_json["rct_signatures"]["outPk"])):
+        # Ptemp += Point(resp_json["rct_signatures"]["outPk"][i])   
+    # return Ptemp + Scalar(resp_json["rct_signatures"]["txnFee"])*dumber25519.H
 
 def verify_ki(ki):
 

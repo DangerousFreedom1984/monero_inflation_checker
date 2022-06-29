@@ -93,10 +93,10 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
             try:
                 with ProcessPoolExecutor() as exe:
                     # args = (resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
-                    y.append(exe.submit(check_sig_mlsag,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
+                    y.append(exe.submit(check_sig_mlsag_bp1,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
                 # y.append(multiprocessing.Process(target=check_sig_mlsag, args=args))
                 # y[sig_ind].start()
-                # check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
+                # res = check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
                 
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
@@ -107,21 +107,23 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
 
 
 
-        str_out = check_rangeproofs.check_sig_bp1(resp_json)
-        # x = []
-        # for sig_ind in range(1):
-            # # import ipdb;ipdb.set_trace()
-            # try:
-                # with ProcessPoolExecutor() as exe:
-                    # x.append(exe.submit(check_rangeproofs.check_sig_bp1, resp_json))
-                    # # x.append(multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, )))
-                    # # x[sig_ind].start()
-            # except:
-                # print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
+        # str_out = check_rangeproofs.check_sig_bp1(resp_json)
+        x = []
+        for sig_ind in range(1):
+            # import ipdb;ipdb.set_trace()
+            try:
+                with ProcessPoolExecutor() as exe:
+                    x.append(exe.submit(check_rangeproofs.check_sig_bp1, resp_json))
+                    # x.append(multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, )))
+                    # x[sig_ind].start()
+            except:
+                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
 
-        # str_out= []
-        # for res in as_completed(x):
-            # str_out.append(res.result())
+        str_out= []
+        for res in as_completed(x):
+            str_out.append(res.result())
+
+
 
         try:
             str_commits = check_rangeproofs.check_commitments_bp1(resp_json)
@@ -157,6 +159,30 @@ def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
 
     return str_out
 
+def check_sig_mlsag_bp1(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
+    pseudoOuts = misc_func.get_pseudo_outs_bp1(resp_json,sig_ind)
+    sss = resp_json["rctsig_prunable"]["MGs"][sig_ind]["ss"]
+    ss_scalar = misc_func.ss_to_scalar(sss,rows,2)
+
+    cc = Scalar(resp_json["rctsig_prunable"]["MGs"][sig_ind]["cc"])
+
+    PK = misc_func.point_matrix_mg(pubs[sig_ind],masks[sig_ind],pseudoOuts)
+
+    IIv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
+
+
+
+    verified,str_out = check_MLSAG(message,PK, IIv, cc, ss_scalar,details)
+    if verified == False:
+        print('Signatures dont match! Verify this block')
+        print('Potential inflation in MLSAG ring signature! Please verify what is happening!')
+        with open("error.txt", "a+") as file1:
+            # Writing data to a file
+            file1.write(str(resp_json))
+            file1.write('\nPotential inflation in MLSAG ring signature! Please verify what is happening!') 
+        raise Exception('ring_signature_failure')
+
+    return str_out
 
 def generate_MLSAG(m,PK,sk,index):
     rows = len(PK)
