@@ -45,8 +45,11 @@ def verify_tx(h,tx_to_check,i_tx=0,details=0):
     else:
         # Check type
         type_tx = resp_json["rct_signatures"]["type"]
-        if type_tx == 1 or type_tx == 2:
+        if type_tx == 1 or type_tx == 2: #RCTTypeSimple and RCTTypeFull
             str_ki, str_inp, str_out, str_commit = check_mlsag.ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
+        elif type_tx == 3: #RCTTypeBulletproof
+            str_ki, str_inp, str_out, str_commit = check_mlsag.ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
+
         elif type_tx == 0:
             amount = 0
             for i in range(outputs):

@@ -9,7 +9,7 @@ import misc_func
 import json
 #from varint import encode as to_varint
 import dumber25519
-from dumber25519 import Scalar, Point, PointVector, ScalarVector,hash_to_point,hash_to_scalar
+from dumber25519 import Scalar, Point, PointVector, ScalarVector,hash_to_point,hash_to_scalar,random_scalar
 import copy
 import multiprocessing
 import check_rangeproofs
@@ -86,10 +86,6 @@ def generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero,Seed=None):
     for i in range(len(P)):
         strP += str(P[i])
 
-    strC = ''
-    for i in range(len(C)):
-        strC += str(C[i])
-
     strC_nonzero = ''
     for i in range(len(C_nonzero)):
         strC_nonzero += str(C_nonzero[i])
@@ -105,13 +101,10 @@ def generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero,Seed=None):
     aG = dumber25519.G*alpha
     aH = hash_to_point(str(P[l]))*alpha
     c = hash_to_scalar(str_round+strP+strC_nonzero+str(C_offset)+str(msg)+str(aG)+str(aH))
-
    
     i = (l+1) % n
     if (i==0):
         c1 = copy.copy(c)
-
-
 
     while (i!=l):
         s[i] = random_scalar()
@@ -133,10 +126,11 @@ def generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero,Seed=None):
 
     s[l] = alpha - c*(p*mu_P+mu_C*z)
 
-    return s,I,D
+    import ipdb;ipdb.set_trace()
+    return s,c1,D
 
 
-def check_CLSAG(msg, s, I, c1, D_aux, pubs, masks, C_offset):
+def check_CLSAG(msg, s, c1, D_aux,I, P, C_nonzero, C_offset):
     
     domain0 = 'CLSAG_agg_0' 
     domain1 = 'CLSAG_agg_1' 
@@ -155,56 +149,35 @@ def check_CLSAG(msg, s, I, c1, D_aux, pubs, masks, C_offset):
     str_aux = str0[len(str_round_aux):]
     str_round = str_round_aux + str_aux
 
-    # inv8 = Scalar(8).invert()
-    # D = D_aux*inv8
     D = copy.copy(D_aux)
-    # D = Scalar(8)*D_aux
 
-    strPubs = ''
-    for i in range(len(pubs)):
-        strPubs += str(pubs[i])
+    strP = ''
+    for i in range(len(P)):
+        strP += str(P[i])
 
-    strMasks = ''
-    for i in range(len(masks)):
-        strMasks += str(masks[i])
+    strC_nonzero = ''
+    for i in range(len(C_nonzero)):
+        strC_nonzero+= str(C_nonzero[i])
 
-    # Now generate the signature
-    mu_P = hash_to_scalar(str_agg0+strPubs+strMasks+str(I)+str(D)+str(C_offset))
-    mu_C = hash_to_scalar(str_agg1+strPubs+strMasks+str(I)+str(D)+str(C_offset))
+    mu_P = hash_to_scalar(str_agg0+strP+strC_nonzero+str(I)+str(D)+str(C_offset))
+    mu_C = hash_to_scalar(str_agg1+strP+strC_nonzero+str(I)+str(D)+str(C_offset))
 
-    print('mu_P')
-    print(mu_P)
-
-    print('mu_C')
-    print(mu_C)
-
-
-    # c = hash_to_scalar(str_round+strPubs+strMasks+str(C_offset)+msg)
     c = copy.copy(c1)
 
     print('c: ')
     print(c)
 
     i = 0
-    n = len(pubs)
+    n = len(P)
 
     while (i<n):
         cp = c*mu_P
         cc = c*mu_C
 
-        L = s[i]*dumber25519.G + cp*pubs[i]+ cc*(masks[i] - C_offset )
+        L = s[i]*dumber25519.G + cp*P[i]+ cc*(C_nonzero[i] - C_offset )
+        R = s[i]*hash_to_point(str(P[i])) + cp*I + cc*D*Scalar(8)
 
-        R = s[i]*hash_to_point(str(pubs[i])) + cp*I + cc*D*Scalar(8)
-
-        print('L: ')
-        print(L)
-
-        print('R: ')
-        print(R)
-
-        # import ipdb;ipdb.set_trace()
-
-        str_hash = str_round+strPubs+strMasks+str(C_offset)+msg
+        str_hash = str_round+strP+strC_nonzero+str(C_offset)+msg
         str_hash += str(L) + str(R)
 
         c = hash_to_scalar(str_hash)
@@ -221,91 +194,6 @@ def check_CLSAG(msg, s, I, c1, D_aux, pubs, masks, C_offset):
 
 
 
-
-
-
-def check_MLSAG(m,PK, I, c, ss,details=0):
-    rows = len(PK)
-    cols = len(PK[0])
-    c_old = copy.copy(c)
-
-    str_out = '\n'
-    str_out += '--------------------------------------------------------\n'
-    str_out += '-------------Checking MLSAG Ring Signature--------------\n'
-    str_out += '--------------------------------------------------------\n'
-    str_out += 'Arguments of check_ring_signature: '
-    str_out += 'Prefix: ' + str(m)
-    str_out += '\n'
-    str_out += 'Key_image: ' + str(I)
-    str_out += '\n'
-    str_out += 'Public keys: ' + str(PK)
-    str_out += '\n'
-    str_out += 'Signature ss: ' + str(ss)
-    str_out += '\n'
-    str_out += 'Signature c: ' + str(c)
-    str_out += '\n'
-
-    # I should check some stuff here like dimensions
-    i = 0
-    msg = ''
-    msg += str(m)
-    # import ipdb;ipdb.set_trace()
-    while i < rows:
-        toHash = ''
-        toHash += str(m)
-
-        str_out += 'Calculating L1 = ss[i][0] * G + ci * P[i][0]   for index = ' + str(i)
-        str_out += '\n'
-        str_out += 'Calculating R = ss[i][0] * H(P[i][0]) + ci * I   for index = ' + str(i)
-        str_out += '\n'
-
-        L1 = ss[i][0]*dumber25519.G + c_old*PK[i][0]
-        R = ss[i][0]*dumber25519.hash_to_point(str(PK[i][0]))+c_old*I
-
-        str_out += 'L1 calculated for index = ' + str(i)
-        str_out += '\n'
-        str_out += str(L1)
-        str_out += '\n'
-        str_out += 'R calculated for index = ' + str(i)
-        str_out += '\n'
-        str_out += str(R)
-        str_out += '\n'
-
-        toHash += str(PK[i][0])
-        toHash += str(L1)
-        toHash += str(R)
-
-        L2 = ss[i][1]*dumber25519.G + c_old*PK[i][1]
-        toHash += str(PK[i][1])
-        toHash += str(L2)
-
-        str_out += 'Calculating L2 = ss[i][1] * G + ci * P[i][1]   for index = ' + str(i)
-        str_out += '\n'
-        str_out += 'L2 calculated for index = ' + str(i)
-        str_out += '\n'
-        str_out += str(L2)
-        str_out += '\n'
-
-        c_old = dumber25519.hash_to_scalar(toHash)
-        i = i + 1
-        str_out += 'Calculating c_old: ' + str(c_old)
-        str_out += '\n'
-
-    
-    str_out += 'Calculating c_old - c :' 
-    str_out += '\n'
-    res = (c_old-c) == Scalar(0)
-    str_out += str(c_old-c)
-    str_out += '\n'
-    if res:
-        str_out += 'Transaction is valid. The signature matches the data.'
-    else:
-        str_out += 'Transaction is invalid. The signature does not match the data.'
-
-    str_out += '\n'
-    str_out += '--------------------------------------------------------'
-    str_out += '\n'
-    return res, str_out
 
 def get_tx_hash_clsag(resp_json,resp_hex):
     extra_hex = ''
@@ -330,7 +218,6 @@ def get_tx_hash_clsag(resp_json,resp_hex):
     bp_b = resp_json["rctsig_prunable"]["bp"][0]["b"]
     bp_t = resp_json["rctsig_prunable"]["bp"][0]["t"]
 
-
     ph1 = resp_hex.split(extra_hex)[0] + extra_hex
     ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0]+outPk
     ph3 = bp_A+bp_S+bp_T1+bp_T2+bp_taux+bp_mu+L+R+bp_a+bp_b+bp_t
@@ -342,23 +229,6 @@ def get_tx_hash_clsag(resp_json,resp_hex):
 
     return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 
-def get_tx_hash_mlsag(resp_json,resp_hex):
-    extra_hex = ''
-    for i in range(len(resp_json['extra'])):
-        extra_hex += format(resp_json["extra"][i],'02x')
-
-    ss = resp_json["rctsig_prunable"]["MGs"][0]["ss"]
-    asig = resp_json["rctsig_prunable"]["rangeSigs"][0]["asig"]
-
-    ph1 = resp_hex.split(extra_hex)[0] + extra_hex
-    ph2 = resp_hex.split(extra_hex)[1].split(asig)[0]
-    ph3 = resp_hex.split(resp_json["rct_signatures"]["outPk"][-1])[1].split(ss[0][0])[0]
-
-    ph1_hash = dumber25519.cn_fast_hash(ph1)
-    ph2_hash = dumber25519.cn_fast_hash(ph2)
-    ph3_hash = dumber25519.cn_fast_hash(ph3)
-
-    return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 
 
 msg = str('612ebe1b1bfdd4f49732afedc43f4c815f899e190f316eda75fad5423e53b8e6')
@@ -373,8 +243,13 @@ C = PointVector([ Point('de50d6aabc7bd68eff67bded347d494140d8ed0c12a6785a0ba3dad
  
 C_nonzero = PointVector([ Point('ef056230343b70feb26fc4c3cde31c96ec6481f9815893240c72cf2e55a20678'),Point('0fcba4f8a5794d45c0bb0c9bae361857285a05a72704f0af27319dfbb02e5868'),Point('0b77f1a2395294b40cf5a3b1d7e1d9e3615e3262ca2e2cd5e8e4c975d01d4ff4'),Point('94fe96babf8986539db8ab69a219733c5280d5d2b5d7d64af70f04fb66eb402e'),Point('b308f21f6749df01857bd39829f1c84beed823a569577a78f447f1cbdd7f9852'),Point('b8178cc7aff509d42872eec29e0f089c2128f9a2e7fd3a0494e20cad6216cf47'),Point('d148d43672a326e22a2374d9c865cabfbeb555d7cb7e5eb9899c9c4fecb05936'),Point('cd478010293e2f298f3b21243e14fdb4f1806ae030b3c3a65585e60ad2c61a56'),Point('166d0ebf687ccb8a459c407261be109304eeef9f89e8cb6bd40b5f8515f9c128'),Point('eb90be4a8d3810d05113e2eec14bb7e0c3d244a974a1732e19c81716042a7984'),Point('43f3aaf9d2f142621661985916cd8d7e7e9c1c9eeaefdbd3fab582520c471c77'),])
  
+I = p*hash_to_point(str(P[l]))
 
-# sig = generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero)
+s,c1,D = generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero)
+import ipdb;ipdb.set_trace()
+check_CLSAG(msg, s, c1, D, I, P, C_nonzero, C_offset)
+
+
 
 tx_to_check = ['c39652b79beb888464525fee06c3d078463af5b76d493785f8903cae93405603']
 i_tx = 0
@@ -394,23 +269,17 @@ masks = masks_aux[0]
 
 sig_ind = 0
 C_offset = misc_func.get_pseudo_outs(resp_json,sig_ind) #C_offset
-# sss = resp_json["rctsig_prunable"]["MGs"][sig_ind]["ss"]
-# ss_scalar = misc_func.ss_to_scalar(sss,rows,2)
-
-
 ss = resp_json["rctsig_prunable"]["CLSAGs"][0]["s"]
 s_scalar = misc_func.s_to_scalar(ss,rows)
-
-
 c1 = Scalar(resp_json["rctsig_prunable"]["CLSAGs"][0]["c1"])
 D = Point(resp_json["rctsig_prunable"]["CLSAGs"][0]["D"])
-
-
 # PK = misc_func.point_matrix_mg(pubs[sig_ind],masks[sig_ind],pseudoOuts)
-
 I = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
+# check_CLSAG(msg, s_scalar, I, c1, D, pubs, masks, C_offset)
 
+import ipdb;ipdb.set_trace()
+check_CLSAG(msg, s_scalar, c1, D, I, pubs, masks, C_offset)
 
 
 
@@ -440,8 +309,6 @@ I = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
 # s_scalar = copy.copy(s)
 
-import ipdb;ipdb.set_trace()
-check_CLSAG(msg, s_scalar, I, c1, D, pubs, masks, C_offset)
 
 
 

@@ -74,6 +74,63 @@ def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         # print('Total time verification tx', time.time() - time_tx)
         return str_ki, str_inp,str_out, str_commits
 
+def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
+
+        rows = len(resp_json['vin'][0]['key']['key_offsets'])
+        message = get_tx_hash_bp1(resp_json,resp_hex)
+        pubs = misc_func.get_members_in_ring(txs,i_tx,inputs,rows)
+        masks = misc_func.get_masks_in_ring(resp_json,inputs,rows)
+        # import ipdb;ipdb.set_trace()
+### Signature index
+        str_ki = []
+        for sig_ind in range(inputs):
+            Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
+            str_ki.append(misc_func.verify_ki(Iv))
+        # time_ver = time.time()
+
+        y = []
+        for sig_ind in range(inputs):
+            try:
+                with ProcessPoolExecutor() as exe:
+                    # args = (resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
+                    y.append(exe.submit(check_sig_mlsag,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
+                # y.append(multiprocessing.Process(target=check_sig_mlsag, args=args))
+                # y[sig_ind].start()
+                # check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
+                
+            except:
+                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
+
+        str_inp = []
+        for res in as_completed(y):
+            str_inp.append(res.result())
+
+
+
+        str_out = check_rangeproofs.check_sig_bp1(resp_json)
+        # x = []
+        # for sig_ind in range(1):
+            # # import ipdb;ipdb.set_trace()
+            # try:
+                # with ProcessPoolExecutor() as exe:
+                    # x.append(exe.submit(check_rangeproofs.check_sig_bp1, resp_json))
+                    # # x.append(multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, )))
+                    # # x[sig_ind].start()
+            # except:
+                # print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
+
+        # str_out= []
+        # for res in as_completed(x):
+            # str_out.append(res.result())
+
+        try:
+            str_commits = check_rangeproofs.check_commitments_bp1(resp_json)
+        except:
+            print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' commitments check failed')
+
+        # print('Total time verification', time.time() - time_ver)
+        # print('Total time verification tx', time.time() - time_tx)
+        return str_ki, str_inp,str_out, str_commits
 
 def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
     pseudoOuts = misc_func.get_pseudo_outs(resp_json,sig_ind)
@@ -263,34 +320,54 @@ def get_tx_hash_mlsag(resp_json,resp_hex):
 
     return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 
-# message = '06bc62dbfc5a9b2d408a6a68a8d3d949fd0732f8a08067faef29e58b41c73c78'
-# PK = [[Point('a9a0a41d7241649cf4f77f953287680f90a30c8878d49362b91cafd398be817c'),Point('ff4db1aee8d53b5d477ea200f20b4e4cb3615c3d8daf1cd45fe6e0d97bdd3316'),],[Point('0ada433a024c1cb115c70064b9e8e9379389c87759ab960754774689a0415721'),Point('3b7193bcb749c4bd0a5470309af38d88fee121a705a59232a6ff2f55ae5a1533'),],[Point('9855e371c4baa11f96f8afdbcf001e344a4f8ed20723a92b8bc13498d03f0750'),Point('aa12b65f356cd53f27ffcb0928846dcf43d095a346dda9e456289eac16f46e2e'),],[Point('59d87e0e3460085ce87e49322f3150dd1f8c085ee9a5b045d97179383dfe3937'),Point('3e3155e3bd7cb14a8c3dd820785ad1f32c810e078727a466bc236ffc5f7c2176'),],[Point('a91516d1fdb30eb9b37a61dba36e77caead71e276697b941d1fd84d0f25f7f6c'),Point('dfeb624430f3e81a4b7112043b8535a9b9c9193b0942f4103355500cb4f30880'),]]
-# sk = [Scalar('ce3c86ee5e0174ff4314975ab48be6298801a7bfdb230de767d1847f6663fa05'),Scalar('1d4db898a3ece8d3a4982ca58b6c4deac8a54a72193570906f97d93db4d90108'),]
-# index = 3
+# def get_tx_hash_bp1(resp_json,resp_hex):
+    # extra_hex = ''
+    # for i in range(len(resp_json['extra'])):
+        # extra_hex += format(resp_json["extra"][i],'02x')
+
+    # ss = resp_json["rctsig_prunable"]["MGs"][0]["ss"]
+    # outPk = resp_json["rct_signatures"]["outPk"][-1]
+
+    # ph1 = resp_hex.split(extra_hex)[0] + extra_hex
+    # ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0]
+    # ph3 = resp_hex.split(resp_json["rct_signatures"]["outPk"][-1])[1].split(ss[0][0])[0]
+
+    # ph1_hash = dumber25519.cn_fast_hash(ph1)
+    # ph2_hash = dumber25519.cn_fast_hash(ph2)
+    # ph3_hash = dumber25519.cn_fast_hash(ph3)
+
+    # return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
+
+def get_tx_hash_bp1(resp_json,resp_hex):
+    extra_hex = ''
+    for i in range(len(resp_json['extra'])):
+        extra_hex += format(resp_json["extra"][i],'02x')
+
+    outPk = resp_json["rct_signatures"]["outPk"][-1]
+
+    # import ipdb;ipdb.set_trace()
+    L,R = '',''
+    bp_A = resp_json["rctsig_prunable"]["bp"][0]["A"]
+    bp_S = resp_json["rctsig_prunable"]["bp"][0]["S"]
+    bp_T1 = resp_json["rctsig_prunable"]["bp"][0]["T1"]
+    bp_T2 = resp_json["rctsig_prunable"]["bp"][0]["T2"]
+    bp_taux = resp_json["rctsig_prunable"]["bp"][0]["taux"]
+    bp_mu = resp_json["rctsig_prunable"]["bp"][0]["mu"]
+    for i in range(len(resp_json["rctsig_prunable"]["bp"][0]["L"])):
+        L += str(resp_json["rctsig_prunable"]["bp"][0]["L"][i])
+    for i in range(len(resp_json["rctsig_prunable"]["bp"][0]["R"])):
+        R += str(resp_json["rctsig_prunable"]["bp"][0]["R"][i])
+    bp_a = resp_json["rctsig_prunable"]["bp"][0]["a"]
+    bp_b = resp_json["rctsig_prunable"]["bp"][0]["b"]
+    bp_t = resp_json["rctsig_prunable"]["bp"][0]["t"]
+
+    ph1 = resp_hex.split(extra_hex)[0] + extra_hex
+    ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0]+outPk
+    ph3 = bp_A+bp_S+bp_T1+bp_T2+bp_taux+bp_mu+L+R+bp_a+bp_b+bp_t
 
 
-# ss, cc, I = generate_MLSAG(message,PK,sk,index)
-# print('c_0: ')
-# print(cc)
-# print('ss: ')
-# print(ss)
-# print('I: ')
-# print(I)
-# import ipdb;ipdb.set_trace()
+    ph1_hash = dumber25519.cn_fast_hash(ph1)
+    ph2_hash = dumber25519.cn_fast_hash(ph2)
+    ph3_hash = dumber25519.cn_fast_hash(ph3)
 
-
-# print('message: ')
-# print(message)
-# print('PK: ')
-# print(PK)
-# print('I: ')
-# print(I)
-# print('c_0: ')
-# print(cc)
-# print('ss: ')
-# print(ss)
-
-# ver, str_out = check_MLSAG(message,PK, I, cc, ss,1)
-# print(' Verified: ' , ver)
-# print(str_out)
-# import ipdb;ipdb.set_trace()
+    return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)

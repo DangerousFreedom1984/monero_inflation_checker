@@ -200,8 +200,8 @@ class Point:
             self.x = x
             self.y = y
 
-            if not self.on_curve():
-                raise ValueError
+            # if not self.on_curve():
+                # raise ValueError
         # Generated from a hex representation
         elif isinstance(x,str) and y is None:
             try:
@@ -213,8 +213,8 @@ class Point:
             except:
                 raise TypeError
 
-            if not self.on_curve():
-                raise ValueError
+            # if not self.on_curve():
+                # raise ValueError
         else:
             raise TypeError
 

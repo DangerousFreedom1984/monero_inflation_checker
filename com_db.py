@@ -5,7 +5,6 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
 
-from monerorpc.authproxy import AuthServiceProxy, JSONRPCException
 import json
 import requests
 import settings
