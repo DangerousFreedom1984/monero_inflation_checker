@@ -35,7 +35,6 @@ def check_commitments(resp_json):
     if "pseudoOuts" in resp_json["rct_signatures"]:
         Cin = Scalar(0)*dumber25519.G
         Cout = Scalar(0)*dumber25519.G
-        str_com = ''
         for i in range(len(resp_json["rct_signatures"]["pseudoOuts"])):
             Cin += Point(resp_json["rct_signatures"]["pseudoOuts"][i])
         for i in range(len(resp_json["rct_signatures"]["outPk"])):
@@ -173,7 +172,6 @@ def check_commitments_bp1(resp_json):
     str_com += '--------------------------------------------------------\n'
     Cin = Scalar(0)*dumber25519.G
     Cout = Scalar(0)*dumber25519.G
-    str_com = ''
     for i in range(len(resp_json["rctsig_prunable"]["pseudoOuts"])):
         Cin += Point(resp_json["rctsig_prunable"]["pseudoOuts"][i])
     for i in range(len(resp_json["rct_signatures"]["outPk"])):
@@ -255,7 +253,6 @@ def get_vars_bp1(resp_json):
 # Verify a batch of multi-output proofs
 # proofs: list of proof data lists
 # N: number of bits in range
-# returns: True if all proofs are valid
 def check_bp1(proofs):
     N = 64
     # determine the length of the longest proof
@@ -411,8 +408,37 @@ def check_bp1(proofs):
         scalars.append(z5[i])
         points.append(Hi[i])
     
-    str_out = 'Verifying the following equation: '
-    str_out += '...'
+    str_out = ''
+    str_out += '\n--------------------------------------------------------\n'
+    str_out += '------------------Checking Rangeproofs------------------\n'
+    str_out += '--------------------------------------------------------\n'
+    str_out += 'Verifying the Bulletproofs equation with inputs: \n'
+    str_out += '\nV: \n'
+    str_out += str(V)
+    str_out += '\nA: \n'
+    str_out += str(A)
+    str_out += '\nS: \n'
+    str_out += str(S)
+    str_out += '\nT1: \n'
+    str_out += str(T1)
+    str_out += '\nT2: \n'
+    str_out += str(T2)
+    str_out += '\ntaux: \n'
+    str_out += str(taux)
+    str_out += '\nmu: \n'
+    str_out += str(mu)
+    str_out += '\nL: \n'
+    str_out += str(L)
+    str_out += '\nR: \n'
+    str_out += str(R)
+    str_out += '\na: \n'
+    str_out += str(a)
+    str_out += '\nb: \n'
+    str_out += str(b)
+    str_out += '\nt: \n'
+    str_out += str(t)
+    
+    str_out += '\n'
     # res = dumber25519.multiexp(scalars,points)
     # import ipdb;ipdb.set_trace()
     if not dumber25519.multiexp(scalars,points) == Z:
@@ -422,6 +448,7 @@ def check_bp1(proofs):
 
     
     str_out += 'Bulletproof passed!'
+    str_out += 'The value commited represents the true value with a negligible probability otherwise.'
     return True, str_out
 
 

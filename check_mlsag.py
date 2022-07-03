@@ -117,7 +117,7 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
                     # x.append(multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, )))
                     # x[sig_ind].start()
             except:
-                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
+                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Bulletproofs failed')
 
         str_out= []
         for res in as_completed(x):
