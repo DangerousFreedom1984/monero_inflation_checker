@@ -11,7 +11,7 @@ import json
 import dumber25519
 from dumber25519 import Scalar, Point, ScalarVector, PointVector, random_scalar, random_point, hash_to_scalar, hash_to_point,cn_fast_hash
 import copy
-import varint
+import varint_mic as varint
 import multiprocessing
 
 def check_sig_Borromean(resp_json,sig_ind):
