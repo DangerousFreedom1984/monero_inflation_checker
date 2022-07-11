@@ -32,7 +32,7 @@ def write_height(height):
 def start_scanning(h):
     initial_time = time.time()
 
-    while h < 1686275:
+    while h < 3000000:
 
         write_height(str(h))
         params_block = {'height':h}
