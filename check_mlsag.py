@@ -25,45 +25,52 @@ def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         # import ipdb;ipdb.set_trace()
 ### Signature index
         str_ki = []
-        for sig_ind in range(inputs):
-            Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
-            str_ki.append(misc_func.verify_ki(Iv))
+        # for sig_ind in range(inputs):
+            # Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
+            # str_ki.append(misc_func.verify_ki(Iv))
         # time_ver = time.time()
 
-        y = []
-        for sig_ind in range(inputs):
-            # import ipdb;ipdb.set_trace()
-            try:
-                with ProcessPoolExecutor() as exe:
-                    # args = (resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
-                    y.append(exe.submit(check_sig_mlsag,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
-                # y.append(multiprocessing.Process(target=check_sig_mlsag, args=args))
-                # y[sig_ind].start()
-                # check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
+        # y = []
+        # for sig_ind in range(inputs):
+            # # import ipdb;ipdb.set_trace()
+            # try:
+                # with ProcessPoolExecutor() as exe:
+                    # # args = (resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
+                    # y.append(exe.submit(check_sig_mlsag,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
+                # # y.append(multiprocessing.Process(target=check_sig_mlsag, args=args))
+                # # y[sig_ind].start()
+                # # check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
                 
-            except:
-                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
+            # except:
+                # print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
 
         str_inp = []
-        for res in as_completed(y):
-            str_inp.append(res.result())
+        # for res in as_completed(y):
+            # str_inp.append(res.result())
 
 
 
-        x = []
+        # x = []
         for sig_ind in range(outputs):
             # import ipdb;ipdb.set_trace()
-            try:
-                with ProcessPoolExecutor() as exe:
-                    x.append(exe.submit(check_rangeproofs.check_sig_Borromean, resp_json,sig_ind))
+            # try:
+                # with ProcessPoolExecutor() as exe:
+                    # x.append(exe.submit(check_rangeproofs.check_sig_Borromean, resp_json,sig_ind))
                     # x.append(multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, )))
                     # x[sig_ind].start()
-            except:
-                print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
+            str_out,verified = check_rangeproofs.check_sig_Borromean(resp_json,sig_ind)
+            if not verified:
+                print('Potential inflation in Borromean Signatures! Please verify what is happening!')
+                with open("error.txt", "a+") as file1:
+                    # Writing data to a file
+                    file1.write('\nPotential inflation in Borromean ring signature! Please verify what is happening!') 
+                    file1.write('\nTransaction id: '+str(txs[i_tx]))
+            # except:
+                # print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
 
-        str_out= []
-        for res in as_completed(x):
-            str_out.append(res.result())
+        # str_out= []
+        # for res in as_completed(x):
+            # str_out.append(res.result())
 
         try:
             str_commits = check_rangeproofs.check_commitments(resp_json)
