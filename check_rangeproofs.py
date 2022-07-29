@@ -340,7 +340,7 @@ def check_bp1(proofs):
         for j in range(1,int(M+1)):
             k -= (z**(j+2))*sum_scalar(Scalar(2),N)
 
-        y1 = (t-(z*ip1y+k))*weight_y
+        y1 += (t-(z*ip1y+k))*weight_y
 
 
         for j in range(len(V)):
@@ -384,8 +384,8 @@ def check_bp1(proofs):
             g += z
             h -= (z*(y**i) + (z**(2+i//N))*(Scalar(2)**(i%N)))*((y_inv)**i)
 
-            z4[i] = -g*weight_z
-            z5[i] = -h*weight_z
+            z4[i] -= g*weight_z
+            z5[i] -= h*weight_z
 
         z1 += mu*weight_z
 
