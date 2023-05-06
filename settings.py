@@ -21,8 +21,6 @@ Gi = PointVector(np.load('Gi.npy',allow_pickle=True))
 Hi_plus = PointVector(np.load('Hi_plus.npy',allow_pickle=True))
 Gi_plus = PointVector(np.load('Gi_plus.npy',allow_pickle=True))
 
-import ipdb;ipdb.set_trace()
-
 def node_choice(choice):
     global node_conn
 
