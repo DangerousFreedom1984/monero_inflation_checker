@@ -12,9 +12,9 @@ import scan_bc
 import settings
 import sys
 
-n = len(sys.argv)
- 
-if n == 1:
+
+def menu1():
+
     print('---------------------------------------')
     print('WELCOME TO THE MONERO INFLATION CHECKER')
     print('---------------------------------------')
@@ -34,6 +34,8 @@ if n == 1:
     print(' ')
 
 
+def menu2():
+
     print('1. Verify a specific transaction')
     print('2. Scan blockchain')
     print('3. Quit')
@@ -52,7 +54,7 @@ if n == 1:
         except KeyError:
             print('Not found. Please enter a valid transaction.')
         except Exception:
-            print('Please check if your node is properly running. If so, maybe the verification for this tx was not implemented yet. Please come back later.')
+            print('Please check if your node is properly running. If so, maybe there is a bug in the software. Please report the txid at monero-inflation-checker@protonmail.com. Thank you!')
 
 
     elif val == '2':
@@ -67,21 +69,37 @@ if n == 1:
 
     elif val == '3':
         print('Bye')
+        return False
 
     else:
         print('Option unavailable')
 
-else:
-    if sys.argv[1]=='scan_fast':
-        settings.node_choice(1)
-        print('Continue scanning...')
-        # import ipdb;ipdb.set_trace()
-        if exists('height.txt'):
-            h = int(scan_bc.read_height())
-        else:
-            h = 0
-            scan_bc.write_height(str(h))
-        scan_bc.start_scanning(h)
+    return True
+
+
+if __name__ == "__main__":
+
+    n = len(sys.argv)
+     
+    if n == 1:
+        menu1()
+        ans = True
+        while ans:
+            ans = menu2()
+
     else:
-        print('Unknow argument')
+        if sys.argv[1]=='scan_fast':
+            settings.node_choice(1)
+            print('Continue scanning...')
+            # import ipdb;ipdb.set_trace()
+            if exists('height.txt'):
+                h = int(scan_bc.read_height())
+            else:
+                h = 0
+                scan_bc.write_height(str(h))
+            scan_bc.start_scanning(h)
+        else:
+            print('Unknow argument')
+
+
 

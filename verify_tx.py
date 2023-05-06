@@ -12,18 +12,13 @@ import check_clsag
 import check_rangeproofs
 
 import json
-#from varint import encode as to_varint
 import csv
 import time
 import multiprocessing
 
 
-
-### TX
-
 def verify_tx(h,tx_to_check,i_tx=0,details=0):
 
-    # import ipdb;ipdb.set_trace()
     if len(tx_to_check)>=1:
         txs = tx_to_check
         resp_json,resp_hex = com_db.get_tx(tx_to_check,i_tx) 
@@ -52,6 +47,8 @@ def verify_tx(h,tx_to_check,i_tx=0,details=0):
             str_ki, str_inp, str_out, str_commit = check_mlsag.ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
         elif type_tx == 5: #RCTTypeCLSAG
             str_ki, str_inp, str_out, str_commit = check_clsag.ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
+        elif type_tx == 6: #RCTTypeBulletproofPlus
+            str_ki, str_inp, str_out, str_commit = check_clsag.ring_sig_correct_bp_plus(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details)
 
         elif type_tx == 0:
             amount = 0

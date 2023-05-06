@@ -7,7 +7,6 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import com_db
 import misc_func
 import json
-#from varint import encode as to_varint
 import dumber25519
 from dumber25519 import Scalar, Point, PointVector, ScalarVector,hash_to_point,hash_to_scalar,random_scalar
 import copy
@@ -25,22 +24,16 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
     pubs = misc_func.get_members_in_ring(txs,i_tx,inputs,rows)
     masks = misc_func.get_masks_in_ring(resp_json,inputs,rows)
 
-### Signature index
     str_ki = []
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         str_ki.append(misc_func.verify_ki(Iv))
-    # time_ver = time.time()
 
     y = []
     for sig_ind in range(inputs):
         try:
             with ProcessPoolExecutor() as exe:
-                # args = (resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
                 y.append(exe.submit(check_sig_clsag_bp1,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
-            # y.append(multiprocessing.Process(target=check_sig_mlsag, args=args))
-            # y[sig_ind].start()
-            # res = check_sig_clsag_bp1(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
             
         except:
             print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
@@ -49,9 +42,6 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
     for res in as_completed(y):
         str_inp.append(res.result())
 
-
-
-    # str_out = check_rangeproofs.check_sig_bp1(resp_json)
     x = []
     for sig_ind in range(1):
         try:
@@ -65,14 +55,59 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         str_out.append(res.result())
 
 
+    try:
+        str_commits = check_rangeproofs.check_commitments_bp1(resp_json)
+    except:
+        print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' commitments check failed')
+
+    return str_ki, str_inp,str_out, str_commits
+
+
+def ring_sig_correct_bp_plus(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
+
+    rows = len(resp_json['vin'][0]['key']['key_offsets'])
+    message = get_tx_hash_clsag_bp_plus(resp_json,resp_hex)
+    pubs = misc_func.get_members_in_ring(txs,i_tx,inputs,rows)
+    masks = misc_func.get_masks_in_ring(resp_json,inputs,rows)
+
+    str_ki = []
+    for sig_ind in range(inputs):
+        Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
+        str_ki.append(misc_func.verify_ki(Iv))
+
+    y = []
+    for sig_ind in range(inputs):
+        try:
+            with ProcessPoolExecutor() as exe:
+                y.append(exe.submit(check_sig_clsag_bp1,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
+            
+        except:
+            print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
+
+    str_inp = []
+    for res in as_completed(y):
+        str_inp.append(res.result())
+
+
+    # str_out = check_rangeproofs.check_sig_bp_plus(resp_json)
+    x = []
+    for sig_ind in range(1):
+        try:
+            with ProcessPoolExecutor() as exe:
+                x.append(exe.submit(check_rangeproofs.check_sig_bp_plus, resp_json))
+        except:
+            print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Bulletproofs failed')
+
+    str_out= []
+    for res in as_completed(x):
+        str_out.append(res.result())
+
 
     try:
         str_commits = check_rangeproofs.check_commitments_bp1(resp_json)
     except:
         print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' commitments check failed')
 
-    # print('Total time verification', time.time() - time_ver)
-    # print('Total time verification tx', time.time() - time_tx)
     return str_ki, str_inp,str_out, str_commits
 
 def check_sig_clsag_bp1(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
@@ -84,7 +119,6 @@ def check_sig_clsag_bp1(resp_json,sig_ind,inputs,rows,pubs,masks,message,details
     s_scalar = misc_func.s_to_scalar(ss,rows)
     c1 = Scalar(resp_json["rctsig_prunable"]["CLSAGs"][sig_ind]["c1"])
     D = Point(resp_json["rctsig_prunable"]["CLSAGs"][sig_ind]["D"])
-# PK = misc_func.point_matrix_mg(pubs[sig_ind],masks[sig_ind],pseudoOuts)
     I = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
 
@@ -180,7 +214,6 @@ def generate_CLSAG(msg,p,P,z,C_offset,C,C_nonzero,Seed=None):
 
     s[l] = alpha - c*(p*mu_P+mu_C*z)
 
-    import ipdb;ipdb.set_trace()
     return s,c1,D
 
 
@@ -278,7 +311,6 @@ def get_tx_hash_clsag(resp_json,resp_hex):
 
     outPk = resp_json["rct_signatures"]["outPk"][-1]
 
-    # import ipdb;ipdb.set_trace()
     L,R = '',''
     bp_A = resp_json["rctsig_prunable"]["bp"][0]["A"]
     bp_S = resp_json["rctsig_prunable"]["bp"][0]["S"]
@@ -306,4 +338,32 @@ def get_tx_hash_clsag(resp_json,resp_hex):
     return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 
 
+def get_tx_hash_clsag_bp_plus(resp_json,resp_hex):
+    extra_hex = ''
+    for i in range(len(resp_json['extra'])):
+        extra_hex += format(resp_json["extra"][i],'02x')
 
+    outPk = resp_json["rct_signatures"]["outPk"][-1]
+
+    L,R = '',''
+    bp_A = resp_json["rctsig_prunable"]["bpp"][0]["A"]
+    bp_A1 = resp_json["rctsig_prunable"]["bpp"][0]["A1"]
+    bp_B = resp_json["rctsig_prunable"]["bpp"][0]["B"]
+    bp_r1 = resp_json["rctsig_prunable"]["bpp"][0]["r1"]
+    bp_s1 = resp_json["rctsig_prunable"]["bpp"][0]["s1"]
+    bp_d1 = resp_json["rctsig_prunable"]["bpp"][0]["d1"]
+    for i in range(len(resp_json["rctsig_prunable"]["bpp"][0]["L"])):
+        L += str(resp_json["rctsig_prunable"]["bpp"][0]["L"][i])
+    for i in range(len(resp_json["rctsig_prunable"]["bpp"][0]["R"])):
+        R += str(resp_json["rctsig_prunable"]["bpp"][0]["R"][i])
+
+    ph1 = resp_hex.split(extra_hex)[0] + extra_hex
+    ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0]+outPk
+    ph3 = bp_A+bp_A1+bp_B+bp_r1+bp_s1+bp_d1+L+R
+
+
+    ph1_hash = dumber25519.cn_fast_hash(ph1)
+    ph2_hash = dumber25519.cn_fast_hash(ph2)
+    ph3_hash = dumber25519.cn_fast_hash(ph3)
+
+    return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)

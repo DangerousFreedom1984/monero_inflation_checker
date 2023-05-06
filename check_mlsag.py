@@ -7,7 +7,6 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import com_db
 import misc_func
 import json
-#from varint import encode as to_varint
 import dumber25519
 from dumber25519 import Scalar, Point, PointVector, ScalarVector
 import copy
@@ -22,24 +21,16 @@ def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         message = get_tx_hash_mlsag(resp_json,resp_hex)
         pubs = misc_func.get_members_in_ring(txs,i_tx,inputs,rows)
         masks = misc_func.get_masks_in_ring(resp_json,inputs,rows)
-        # import ipdb;ipdb.set_trace()
-### Signature index
         str_ki = []
         for sig_ind in range(inputs):
             Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
             str_ki.append(misc_func.verify_ki(Iv))
-        # time_ver = time.time()
 
         y = []
         for sig_ind in range(inputs):
-            # import ipdb;ipdb.set_trace()
             try:
                 with ProcessPoolExecutor() as exe:
-                    # args = (resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
                     y.append(exe.submit(check_sig_mlsag,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
-                # y.append(multiprocessing.Process(target=check_sig_mlsag, args=args))
-                # y[sig_ind].start()
-                # check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
                 
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
@@ -48,16 +39,11 @@ def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         for res in as_completed(y):
             str_inp.append(res.result())
 
-
-
         x = []
         for sig_ind in range(outputs):
-            # import ipdb;ipdb.set_trace()
             try:
                 with ProcessPoolExecutor() as exe:
                     x.append(exe.submit(check_rangeproofs.check_sig_Borromean, resp_json,sig_ind))
-                    # x.append(multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, )))
-                    # x[sig_ind].start()
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Borromean failed')
 
@@ -70,9 +56,8 @@ def ring_sig_correct(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         except:
             print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' commitments check failed')
 
-        # print('Total time verification', time.time() - time_ver)
-        # print('Total time verification tx', time.time() - time_tx)
         return str_ki, str_inp,str_out, str_commits
+
 
 def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
 
@@ -80,23 +65,16 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         message = get_tx_hash_bp1(resp_json,resp_hex)
         pubs = misc_func.get_members_in_ring(txs,i_tx,inputs,rows)
         masks = misc_func.get_masks_in_ring(resp_json,inputs,rows)
-        # import ipdb;ipdb.set_trace()
-### Signature index
         str_ki = []
         for sig_ind in range(inputs):
             Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
             str_ki.append(misc_func.verify_ki(Iv))
-        # time_ver = time.time()
 
         y = []
         for sig_ind in range(inputs):
             try:
                 with ProcessPoolExecutor() as exe:
-                    # args = (resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
                     y.append(exe.submit(check_sig_mlsag_bp1,resp_json,sig_ind,inputs,rows,pubs,masks,message,details))
-                # y.append(multiprocessing.Process(target=check_sig_mlsag, args=args))
-                # y[sig_ind].start()
-                # res = check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details)
                 
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx]) + ' ring signature failed')
@@ -105,17 +83,11 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         for res in as_completed(y):
             str_inp.append(res.result())
 
-
-
-        # str_out = check_rangeproofs.check_sig_bp1(resp_json)
         x = []
         for sig_ind in range(1):
-            # import ipdb;ipdb.set_trace()
             try:
                 with ProcessPoolExecutor() as exe:
                     x.append(exe.submit(check_rangeproofs.check_sig_bp1, resp_json))
-                    # x.append(multiprocessing.Process(target=check_rangeproofs.check_sig_Borromean, args=(resp_json,sig_ind, )))
-                    # x[sig_ind].start()
             except:
                 print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' Bulletproofs failed')
 
@@ -130,8 +102,6 @@ def ring_sig_correct_bp1(h,resp_json,resp_hex,txs,i_tx,inputs,outputs,details):
         except:
             print('Verify block_height: '+str(h)+' tx : '+str(txs[i_tx])+' commitments check failed')
 
-        # print('Total time verification', time.time() - time_ver)
-        # print('Total time verification tx', time.time() - time_tx)
         return str_ki, str_inp,str_out, str_commits
 
 def check_sig_mlsag(resp_json,sig_ind,inputs,rows,pubs,masks,message,details):
@@ -187,7 +157,6 @@ def check_sig_mlsag_bp1(resp_json,sig_ind,inputs,rows,pubs,masks,message,details
 def generate_MLSAG(m,PK,sk,index):
     rows = len(PK)
     cols = len(PK[0])
-    # I should check some stuff here like dimensions
     msg0 = ''
     msg0 += str(m)
 
@@ -205,7 +174,6 @@ def generate_MLSAG(m,PK,sk,index):
 
     I0 = sk[0]*dumber25519.hash_to_point(str(PK[index][0]))
 
-    # import ipdb;ipdb.set_trace()
     c_old = dumber25519.hash_to_scalar(msg0)
     i = (index + 1) % rows
     if i==0:
@@ -214,7 +182,6 @@ def generate_MLSAG(m,PK,sk,index):
     ss = misc_func.scalar_matrix(rows,cols,0) 
 
     while (i!=index):
-        # print('i: ',i)
         msg = ''
         msg += str(m)
 
@@ -232,12 +199,10 @@ def generate_MLSAG(m,PK,sk,index):
         msg += str(L2)
 
         c_old = dumber25519.hash_to_scalar(msg)
-        # print(c_old)
         i = (i+1)%rows
         if i==0:
             cc = copy.copy(c_old)
 
-    # import ipdb;ipdb.set_trace()
     ss[index][0] = alpha0 - c_old*sk[0]
     ss[index][1] = alpha1 - c_old*sk[1] 
 
@@ -265,11 +230,9 @@ def check_MLSAG(m,PK, I, c, ss,details=0):
     str_out += 'Signature c: ' + str(c)
     str_out += '\n'
 
-    # I should check some stuff here like dimensions
     i = 0
     msg = ''
     msg += str(m)
-    # import ipdb;ipdb.set_trace()
     while i < rows:
         toHash = ''
         toHash += str(m)
@@ -345,24 +308,6 @@ def get_tx_hash_mlsag(resp_json,resp_hex):
     ph3_hash = dumber25519.cn_fast_hash(ph3)
 
     return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
-
-# def get_tx_hash_bp1(resp_json,resp_hex):
-    # extra_hex = ''
-    # for i in range(len(resp_json['extra'])):
-        # extra_hex += format(resp_json["extra"][i],'02x')
-
-    # ss = resp_json["rctsig_prunable"]["MGs"][0]["ss"]
-    # outPk = resp_json["rct_signatures"]["outPk"][-1]
-
-    # ph1 = resp_hex.split(extra_hex)[0] + extra_hex
-    # ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0]
-    # ph3 = resp_hex.split(resp_json["rct_signatures"]["outPk"][-1])[1].split(ss[0][0])[0]
-
-    # ph1_hash = dumber25519.cn_fast_hash(ph1)
-    # ph2_hash = dumber25519.cn_fast_hash(ph2)
-    # ph3_hash = dumber25519.cn_fast_hash(ph3)
-
-    # return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 
 def get_tx_hash_bp1(resp_json,resp_hex):
     extra_hex = ''
