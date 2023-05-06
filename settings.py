@@ -8,21 +8,23 @@ import copy
 from dumber25519 import Scalar, Point, ScalarVector, PointVector, random_scalar, random_point, hash_to_scalar, hash_to_point,cn_fast_hash
 import dumber25519
 import varint_mic as varint
+import numpy as np
 
+
+global url_str 
+global Hi,Gi,Hi_plus,Gi_plus
+
+url_str = 'http://node.sethforprivacy.com:18089/'
+
+Hi = PointVector(np.load('Hi.npy',allow_pickle=True))
+Gi = PointVector(np.load('Gi.npy',allow_pickle=True))
+Hi_plus = PointVector(np.load('Hi_plus.npy',allow_pickle=True))
+Gi_plus = PointVector(np.load('Gi_plus.npy',allow_pickle=True))
+
+import ipdb;ipdb.set_trace()
 
 def node_choice(choice):
     global node_conn
-    global url_str 
-    global Hi,Gi,Hi_plus,Gi_plus
-    M,N = 16,64
-
-    domain = str("bulletproof")
-    Hi = PointVector([hash_to_point(cn_fast_hash(str(dumber25519.H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i))) for i in range(0,2*M*N,2)])
-    Gi = PointVector([hash_to_point(cn_fast_hash(str(dumber25519.H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i))) for i in range(1,2*M*N+1,2)])
-
-    domain_plus = str("bulletproof_plus")
-    Hi_plus = PointVector([hash_to_point(cn_fast_hash(str(dumber25519.H) + domain_plus.encode("utf-8").hex() + varint.encode_as_varint(i))) for i in range(0,2*M*N,2)])
-    Gi_plus = PointVector([hash_to_point(cn_fast_hash(str(dumber25519.H) + domain_plus.encode("utf-8").hex() + varint.encode_as_varint(i))) for i in range(1,2*M*N+1,2)])
 
     node_conn = copy.copy(choice)
 
@@ -30,3 +32,13 @@ def node_choice(choice):
         url_str = 'http://node.sethforprivacy.com:18089/'
     else:
         url_str = 'http://localhost:18081/'
+
+# M,N = 16,64
+
+# domain = str("bulletproof")
+# Hi_old = PointVector([hash_to_point(cn_fast_hash(str(dumber25519.H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i))) for i in range(0,2*M*N,2)])
+# Gi_old = PointVector([hash_to_point(cn_fast_hash(str(dumber25519.H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i))) for i in range(1,2*M*N+1,2)])
+
+# domain_plus = str("bulletproof_plus")
+# Hi_plus_old = PointVector([hash_to_point(cn_fast_hash(str(dumber25519.H) + domain_plus.encode("utf-8").hex() + varint.encode_as_varint(i))) for i in range(0,2*M*N,2)])
+# Gi_plus_old = PointVector([hash_to_point(cn_fast_hash(str(dumber25519.H) + domain_plus.encode("utf-8").hex() + varint.encode_as_varint(i))) for i in range(1,2*M*N+1,2)])
