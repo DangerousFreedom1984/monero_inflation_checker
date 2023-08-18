@@ -18,84 +18,54 @@ import settings
 
 
 def get_block(params_block):
-    url = settings.url_str + 'json_rpc'
-    headers = {'Content-Type': 'application/json'}
-    rpc_input = {
-           "method": "get_block",
-           "params": params_block,
-           "decode_as_json": True 
-           }
+    url = settings.url_str + "json_rpc"
+    headers = {"Content-Type": "application/json"}
+    rpc_input = {"method": "get_block", "params": params_block, "decode_as_json": True}
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
 
-# execute the rpc request
-    response = requests.post(
-        url,
-        data=json.dumps(rpc_input),
-        headers=headers)
+    # execute the rpc request
+    response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
 
     resp_json = json.loads(response.json()["result"]["json"])
 
     return resp_json
 
 
-def get_ring_members(index,amount):
-
-    url = settings.url_str + 'get_outs'
-    headers = {'Content-Type': 'application/json'}
-    rpc_input = {
-           "outputs": [{
-               "amount": amount,
-               "index": index
-                }]
-           }
+def get_ring_members(index, amount):
+    url = settings.url_str + "get_outs"
+    headers = {"Content-Type": "application/json"}
+    rpc_input = {"outputs": [{"amount": amount, "index": index}]}
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
 
-# execute the rpc request
-    response = requests.post(
-        url,
-        data=json.dumps(rpc_input),
-        headers=headers)
+    # execute the rpc request
+    response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
 
     return response.json()["outs"][0]["key"]
 
 
-def get_mask_members(index,amount):
-
-    url = settings.url_str + 'get_outs'
-    headers = {'Content-Type': 'application/json'}
-    rpc_input = {
-           "outputs": [{
-               "amount": amount,
-               "index": index
-                }]
-           }
+def get_mask_members(index, amount):
+    url = settings.url_str + "get_outs"
+    headers = {"Content-Type": "application/json"}
+    rpc_input = {"outputs": [{"amount": amount, "index": index}]}
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
 
-# execute the rpc request
-    response = requests.post(
-        url,
-        data=json.dumps(rpc_input),
-        headers=headers)
+    # execute the rpc request
+    response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
 
     # import ipdb;ipdb.set_trace()
     return response.json()["outs"][0]["mask"]
 
-def get_tx(txs,index):
 
-    url = settings.url_str + 'get_transactions'
-    headers = {'Content-Type': 'application/json'}
-    rpc_input = {
-           "txs_hashes": txs, "decode_as_json": True 
-           }
+def get_tx(txs, index):
+    url = settings.url_str + "get_transactions"
+    headers = {"Content-Type": "application/json"}
+    rpc_input = {"txs_hashes": txs, "decode_as_json": True}
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
 
-# execute the rpc request
-    response = requests.post(
-        url,
-        data=json.dumps(rpc_input),
-        headers=headers)
+    # execute the rpc request
+    response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
 
     resp_json = json.loads(response.json()["txs"][index]["as_json"])
     resp_hex = response.json()["txs"][index]["as_hex"]
 
-    return resp_json,resp_hex
+    return resp_json, resp_hex

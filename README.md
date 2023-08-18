@@ -35,7 +35,9 @@ There are two options to use the MIC verifier.
 
 > rpc_connection = AuthServiceProxy(service_url='http://{0}:{1}@127.0.0.1:18081/json_rpc'.format(username, password))
 
-2) Using a public node. The standard public node is from Seth for Privacy ('http://node.sethforprivacy.com:18089/')
+2) Using a public node. The standard public nodes are:
+- Cake Wallet ('http://xmr-node.cakewallet.com:18081/') - default
+- Seth for Privacy ('http://node.sethforprivacy.com:18089/')
 
 You can change the connection parameters at 'com_db.py' according to your needs.
 

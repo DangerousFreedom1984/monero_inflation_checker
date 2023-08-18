@@ -11,7 +11,8 @@ import check_mlsag
 import check_rangeproofs
 
 import json
-#from varint import encode as to_varint
+
+# from varint import encode as to_varint
 import csv
 import time
 import multiprocessing
@@ -24,31 +25,30 @@ def read_height():
         height = int(file1.read())
     return height
 
+
 def write_height(height):
     with open("height.txt", "w") as file1:
         # Writing data to a file
         file1.write(height)
-  
+
+
 def start_scanning(h):
     initial_time = time.time()
 
     while h < 4000000:
-
         write_height(str(h))
-        params_block = {'height':h}
+        params_block = {"height": h}
         # block = com_db.rpc_connection.get_block(params_block)
         block_json = com_db.get_block(params_block)
-        txs = block_json['tx_hashes']
+        txs = block_json["tx_hashes"]
         nbr_tx = len(txs)
         print(h)
         # print(nbr_tx)
 
         for i_tx in range(nbr_tx):
             # import ipdb;ipdb.set_trace()
-            verify_tx.verify_tx(h,txs,i_tx,0)
+            verify_tx.verify_tx(h, txs, i_tx, 0)
 
         h += 1
 
-
-    print('Total time', time.time() - initial_time)
-
+    print("Total time", time.time() - initial_time)
