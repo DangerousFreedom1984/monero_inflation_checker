@@ -508,10 +508,6 @@ def check_bp1(proofs):
 
 
 def check_bp_plus(proofs):
-    N = 64
-    M = 2
-    MN = M * N
-    maxM = 16
 
     # curve points
     Z = dumber25519.Z
@@ -523,10 +519,11 @@ def check_bp_plus(proofs):
     # Weighted coefficients for common generators
     G_scalar = Scalar(0)
     H_scalar = Scalar(0)
-    Gi_scalars = ScalarVector([Scalar(0)] * MN)
-    Hi_scalars = ScalarVector([Scalar(0)] * MN)
 
+    # Batch multiexponentiation is not optimized
     # Final multiscalar multiplication data
+    Gi_scalars = ScalarVector([Scalar(0)] * 128*16)
+    Hi_scalars = ScalarVector([Scalar(0)] * 128*16)
     scalars = ScalarVector([])
     points = PointVector([])
 
@@ -537,14 +534,19 @@ def check_bp_plus(proofs):
     for proof in proofs:
         V, A, A1, B, r1, s1, d1, L, R = proof
 
+        maxM = 16
+        logN = 6
+        N = 1 << logN 
+
+        logM = len(L) - 6
+        M = 1 << logM
+        MN = M * N
+        
         if not len(L) == len(R):
-            raise IndexError
-        if not 2 ** len(L) == len(V) * N:
             raise IndexError
 
         # Helpful quantities
-        M = len(V)
-        one_MN = ScalarVector([Scalar(1) for _ in range(M * N)])
+        one_MN = ScalarVector([Scalar(1) for _ in range(MN)])
 
         # Batch weight
         weight = random_scalar()
@@ -594,8 +596,6 @@ def check_bp_plus(proofs):
 
         e = mash(str(transcript), str(A1), str(B))
 
-        logM, M = 0, 0
-        logN = 6
         while (M <= maxM) & (M < len(V)):
             logM += 1
             M = 1 << (logM)
@@ -615,7 +615,7 @@ def check_bp_plus(proofs):
             raise ArithmeticError("Bad verifier challenge!")
 
         ## Add V terms to multiexp
-        for j in range(M):
+        for j in range(len(V)):
             scalars.append(weight * (-(e**2) * z ** (2 * (j + 1)) * y ** (M * N + 1)))
             points.append(V[j] * Scalar(8))
 
@@ -709,7 +709,6 @@ def check_bp_plus(proofs):
 
     str_out += "\n"
     if not dumber25519.multiexp(scalars, points) == Z:
-        raise ArithmeticError("Bad z check!")
         str_out += "Bulletproof+ check FAILED"
         return False, str_out
 
