@@ -68,8 +68,7 @@ def s_to_scalar(ss, rows):
     return s_scalar
 
 
-def get_members_in_ring(txs, index, cols, rows):
-    resp_json, resp_hex = com_db.get_tx(txs, index)
+def get_members_in_ring(resp_json, cols, rows):
     ring_members = key_matrix(cols, rows)
     for ki in range(len(resp_json["vin"])):
         amount = resp_json["vin"][ki]["key"]["amount"]

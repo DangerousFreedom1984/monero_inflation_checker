@@ -18,7 +18,7 @@ from concurrent.futures import as_completed, ProcessPoolExecutor
 def ring_sig_correct(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = get_tx_hash_mlsag(resp_json, resp_hex)
-    pubs = misc_func.get_members_in_ring(txs, i_tx, inputs, rows)
+    pubs = misc_func.get_members_in_ring(resp_json, inputs, rows)
     masks = misc_func.get_masks_in_ring(resp_json, inputs, rows)
     str_ki = []
     for sig_ind in range(inputs):
@@ -95,7 +95,7 @@ def ring_sig_correct(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details
 def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = get_tx_hash_bp1(resp_json, resp_hex)
-    pubs = misc_func.get_members_in_ring(txs, i_tx, inputs, rows)
+    pubs = misc_func.get_members_in_ring(resp_json, inputs, rows)
     masks = misc_func.get_masks_in_ring(resp_json, inputs, rows)
     str_ki = []
     for sig_ind in range(inputs):
