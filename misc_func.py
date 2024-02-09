@@ -48,8 +48,6 @@ def point_matrix_mg(pubs, masks, pseudoOuts):
     mg = []
     for i in range(cols):
         mg.append(PointVector([pubs[i], masks[i] - pseudoOuts]))
-        # print('PK['+str(i)+'][0] = ' +str(pubs[i]))
-        # print('PK['+str(i)+'][1] = ' +str(masks[i]-pseudoOuts))
     return mg
 
 
@@ -93,9 +91,6 @@ def get_masks_in_ring(resp_json, cols, rows):
         pubs_count = len(resp_json["vin"][ki]["key"]["key_offsets"])
         candidates = []
         for rm in range(pubs_count):
-            # import ipdb;ipdb.set_trace()
-            # print(int(indices[rm]))
-            # print(int(amount))
             candidates.append(
                 dumber25519.Point(
                     com_db.get_mask_members(int(indices[rm]), int(amount))
@@ -104,6 +99,22 @@ def get_masks_in_ring(resp_json, cols, rows):
         mask_members[ki] = dumber25519.PointVector(candidates)
     return mask_members
 
+def get_members_and_masks_in_ring(resp_json,cols,rows):
+    mask_members = key_matrix(cols, rows)
+    ring_members = key_matrix(cols, rows)
+    for ki in range(len(resp_json["vin"])):
+        amount = resp_json["vin"][ki]["key"]["amount"]
+        indices = np.cumsum(resp_json["vin"][ki]["key"]["key_offsets"])
+        pubs_count = len(resp_json["vin"][ki]["key"]["key_offsets"])
+        candidates = []
+        for rm in range(pubs_count):
+            candidates.append(
+                (com_db.get_members_and_masks(int(indices[rm]), int(amount)))
+            )
+        ring_members[ki] = dumber25519.PointVector(np.array(candidates)[:,0].tolist())
+        mask_members[ki] = dumber25519.PointVector(np.array(candidates)[:,1].tolist())
+
+    return ring_members,mask_members
 
 def get_pseudo_outs(resp_json, pseudo_index=0):
     if "pseudoOuts" in resp_json["rct_signatures"]:
@@ -120,10 +131,6 @@ def get_pseudo_outs_bp1(resp_json, pseudo_index=0):
     if "pseudoOuts" in resp_json["rctsig_prunable"]:
         pseudos = Point(resp_json["rctsig_prunable"]["pseudoOuts"][pseudo_index])
         return pseudos
-    # Ptemp = Scalar(0)*dumber25519.G
-    # for i in range(len(resp_json["rct_signatures"]["outPk"])):
-    # Ptemp += Point(resp_json["rct_signatures"]["outPk"][i])
-    # return Ptemp + Scalar(resp_json["rct_signatures"]["txnFee"])*dumber25519.H
 
 
 def verify_ki(ki):

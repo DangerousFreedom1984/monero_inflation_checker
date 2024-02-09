@@ -8,6 +8,8 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import json
 import requests
 import settings
+import dumber25519
+from dumber25519 import Scalar, Point, PointVector, ScalarVector
 
 # Execute on monerod: ./monerod --rpc-bind-port 18081 --rpc-login username:password
 # username,password = 'username','password'
@@ -52,9 +54,18 @@ def get_mask_members(index, amount):
     # execute the rpc request
     response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
 
-    # import ipdb;ipdb.set_trace()
     return response.json()["outs"][0]["mask"]
 
+def get_members_and_masks(index, amount):
+    url = settings.url_str + "get_outs"
+    headers = {"Content-Type": "application/json"}
+    rpc_input = {"outputs": [{"amount": amount, "index": index}]}
+    rpc_input.update({"jsonrpc": "2.0", "id": "0"})
+
+    # execute the rpc request
+    response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
+
+    return [dumber25519.Point(response.json()["outs"][0]["key"]),dumber25519.Point(response.json()["outs"][0]["mask"])]
 
 def get_tx(txs, index):
     url = settings.url_str + "get_transactions"
