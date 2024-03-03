@@ -5,9 +5,11 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
 import dumber25519
-from dumber25519 import Scalar, Point, PointVector, ScalarVector
+from dumber25519 import Scalar, Point, PointVector
 import com_db
 import numpy as np
+
+from typing import Dict, List, Tuple
 
 
 def scalar_matrix(cols, rows, ind):
@@ -34,15 +36,6 @@ def point_matrix(cols, rows, ind):
             return [Scalar(0) for _ in range(cols)]
 
 
-def key_matrix(cols, rows):
-    rv = [Scalar(0) * dumber25519.G] * cols
-    rh = [Scalar(0) * dumber25519.G] * rows
-
-    for i in range(0, cols):
-        rv[i] = PointVector(rh)
-    return rv
-
-
 def point_matrix_mg(pubs, masks, pseudoOuts):
     cols = len(pubs)
     mg = []
@@ -66,55 +59,23 @@ def s_to_scalar(ss, rows):
     return s_scalar
 
 
-def get_members_in_ring(resp_json, cols, rows):
-    ring_members = key_matrix(cols, rows)
-    for ki in range(len(resp_json["vin"])):
-        amount = resp_json["vin"][ki]["key"]["amount"]
-        indices = np.cumsum(resp_json["vin"][ki]["key"]["key_offsets"])
-        pubs_count = len(resp_json["vin"][ki]["key"]["key_offsets"])
-        candidates = []
-        for rm in range(pubs_count):
-            candidates.append(
-                dumber25519.Point(
-                    com_db.get_ring_members(int(indices[rm]), int(amount))
-                )
-            )
-        ring_members[ki] = dumber25519.PointVector(candidates)
-    return ring_members
+def get_members_and_masks_in_rings(resp_json: Dict) -> Tuple[List[List[dumber25519.Point]], List[List[dumber25519.Point]]]:
+    members_all, masks_all = com_db.get_members_and_masks([
+        (int(vin["key"]["amount"]), int(index))
+        for vin in resp_json["vin"]
+        for index in np.cumsum(vin["key"]["key_offsets"])
+    ])
 
+    members = []
+    masks = []
+    index = 0
+    for vin in resp_json["vin"]:
+        length = len(vin["key"]["key_offsets"])
+        members.append(members_all[index:index + length])
+        masks.append(masks_all[index:index + length])
+        index += length
 
-def get_masks_in_ring(resp_json, cols, rows):
-    mask_members = key_matrix(cols, rows)
-    for ki in range(len(resp_json["vin"])):
-        amount = resp_json["vin"][ki]["key"]["amount"]
-        indices = np.cumsum(resp_json["vin"][ki]["key"]["key_offsets"])
-        pubs_count = len(resp_json["vin"][ki]["key"]["key_offsets"])
-        candidates = []
-        for rm in range(pubs_count):
-            candidates.append(
-                dumber25519.Point(
-                    com_db.get_mask_members(int(indices[rm]), int(amount))
-                )
-            )
-        mask_members[ki] = dumber25519.PointVector(candidates)
-    return mask_members
-
-def get_members_and_masks_in_ring(resp_json,cols,rows):
-    mask_members = key_matrix(cols, rows)
-    ring_members = key_matrix(cols, rows)
-    for ki in range(len(resp_json["vin"])):
-        amount = resp_json["vin"][ki]["key"]["amount"]
-        indices = np.cumsum(resp_json["vin"][ki]["key"]["key_offsets"])
-        pubs_count = len(resp_json["vin"][ki]["key"]["key_offsets"])
-        candidates = []
-        for rm in range(pubs_count):
-            candidates.append(
-                (com_db.get_members_and_masks(int(indices[rm]), int(amount)))
-            )
-        ring_members[ki] = dumber25519.PointVector(np.array(candidates)[:,0].tolist())
-        mask_members[ki] = dumber25519.PointVector(np.array(candidates)[:,1].tolist())
-
-    return ring_members,mask_members
+    return members, masks
 
 def get_pseudo_outs(resp_json, pseudo_index=0):
     if "pseudoOuts" in resp_json["rct_signatures"]:

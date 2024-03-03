@@ -27,7 +27,7 @@ import settings
 def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = get_tx_hash_clsag(resp_json, resp_hex)
-    pubs,masks = misc_func.get_members_and_masks_in_ring(resp_json,inputs,rows)
+    pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
 
     str_ki = []
     for sig_ind in range(inputs):
@@ -102,7 +102,7 @@ def ring_sig_correct_bp_plus(
 ):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = get_tx_hash_clsag_bp_plus(resp_json, resp_hex)
-    pubs,masks = misc_func.get_members_and_masks_in_ring(resp_json,inputs,rows)
+    pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
 
     str_ki = []
     for sig_ind in range(inputs):

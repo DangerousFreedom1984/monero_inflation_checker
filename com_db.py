@@ -9,7 +9,8 @@ import json
 import requests
 import settings
 import dumber25519
-from dumber25519 import Scalar, Point, PointVector, ScalarVector
+
+from typing import List, Tuple
 
 # Execute on monerod: ./monerod --rpc-bind-port 18081 --rpc-login username:password
 # username,password = 'username','password'
@@ -33,39 +34,20 @@ def get_block(params_block):
     return resp_json
 
 
-def get_ring_members(index, amount):
+def get_members_and_masks(amount_and_index_list: List[Tuple[int, int]]) -> Tuple[List[dumber25519.Point], List[dumber25519.Point]]:
     url = settings.url_str + "get_outs"
     headers = {"Content-Type": "application/json"}
-    rpc_input = {"outputs": [{"amount": amount, "index": index}]}
+    rpc_input = {"outputs": [{"amount": amount_and_index[0], "index": amount_and_index[1]} for amount_and_index in amount_and_index_list]}
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
 
     # execute the rpc request
     response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
 
-    return response.json()["outs"][0]["key"]
+    outs = response.json()["outs"]
+    assert len(outs) == len(amount_and_index_list)
 
+    return [dumber25519.Point(out["key"]) for out in outs], [dumber25519.Point(out["mask"]) for out in outs]
 
-def get_mask_members(index, amount):
-    url = settings.url_str + "get_outs"
-    headers = {"Content-Type": "application/json"}
-    rpc_input = {"outputs": [{"amount": amount, "index": index}]}
-    rpc_input.update({"jsonrpc": "2.0", "id": "0"})
-
-    # execute the rpc request
-    response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
-
-    return response.json()["outs"][0]["mask"]
-
-def get_members_and_masks(index, amount):
-    url = settings.url_str + "get_outs"
-    headers = {"Content-Type": "application/json"}
-    rpc_input = {"outputs": [{"amount": amount, "index": index}]}
-    rpc_input.update({"jsonrpc": "2.0", "id": "0"})
-
-    # execute the rpc request
-    response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
-
-    return [dumber25519.Point(response.json()["outs"][0]["key"]),dumber25519.Point(response.json()["outs"][0]["mask"])]
 
 def get_tx(txs, index):
     url = settings.url_str + "get_transactions"

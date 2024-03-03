@@ -46,21 +46,12 @@ def get_key_image(resp_json, index):
     return image
 
 
-def check_v1(resp_json, resp_hex, sig_ind, tx_prefix, details):
+def check_v1(resp_json, resp_hex, sig_ind, pubs, tx_prefix, details):
     pubs_count, sigr, sigc = get_signatures(resp_json, resp_hex, sig_ind)
     key_image = get_key_image(resp_json, sig_ind)
 
-    amount = resp_json["vin"][sig_ind]["key"]["amount"]
-    indices = np.cumsum(resp_json["vin"][sig_ind]["key"]["key_offsets"])
-
-    candidates = []
-    for rm in range(pubs_count):
-        candidates.append(
-            dumber25519.Point(com_db.get_ring_members(int(indices[rm]), int(amount)))
-        )
-    pubs = dumber25519.PointVector(candidates)
     verified, str_inp = check_ring_signature(
-        tx_prefix, key_image, pubs, pubs_count, sigr, sigc
+        tx_prefix, key_image, dumber25519.PointVector(pubs[sig_ind]), pubs_count, sigr, sigc
     )
     # print(str_out)
     if verified == False:
@@ -80,7 +71,6 @@ def check_v1(resp_json, resp_hex, sig_ind, tx_prefix, details):
 
 
 def ring_sig_correct(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details):
-    rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     tx_prefix = get_tx_prefix_hash(resp_json, resp_hex)
 
     str_commits = check_balance(inputs, outputs, resp_json)
@@ -90,13 +80,15 @@ def ring_sig_correct(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         str_ki.append(misc_func.verify_ki(Iv))
 
+    pubs, _ = misc_func.get_members_and_masks_in_rings(resp_json)
+
     y = []
     for sig_ind in range(inputs):
         try:
             with ProcessPoolExecutor() as exe:
                 y.append(
                     exe.submit(
-                        check_v1, resp_json, resp_hex, sig_ind, tx_prefix, details
+                        check_v1, resp_json, resp_hex, sig_ind, pubs, tx_prefix, details
                     )
                 )
 
@@ -161,19 +153,9 @@ def ring_sig_correct_original(txs, index, details):
         pubs_count, sigr, sigc = get_signatures(resp_json, resp_hex, ki)
         key_image = get_key_image(resp_json, ki)
 
-        amount = resp_json["vin"][ki]["key"]["amount"]
-        indices = np.cumsum(resp_json["vin"][ki]["key"]["key_offsets"])
-
-        candidates = []
-        for rm in range(pubs_count):
-            candidates.append(
-                dumber25519.Point(
-                    com_db.get_ring_members(int(indices[rm]), int(amount))
-                )
-            )
-        pubs = dumber25519.PointVector(candidates)
+        pubs, _ = misc_func.get_members_and_masks_in_rings(resp_json)
         verified, str_out = check_ring_signature(
-            tx_prefix, key_image, pubs, pubs_count, sigr, sigc
+            tx_prefix, key_image, dumber25519.PointVector(pubs), pubs_count, sigr, sigc
         )
         # print(str_out)
         if verified == False:
