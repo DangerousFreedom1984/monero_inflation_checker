@@ -34,7 +34,7 @@ Gi_plus = PointVector(np.load("Gi_plus.npy", allow_pickle=True))
 
 
 def node_choice(choice):
-    global node_conn
+    global node_conn, url_str
 
     node_conn = copy.copy(choice)
 
