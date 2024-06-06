@@ -7,8 +7,8 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import com_db
 import misc_func
 import json
-import dumber25519
-from dumber25519 import (
+import df25519
+from df25519 import (
     Scalar,
     Point,
     PointVector,
@@ -212,7 +212,7 @@ def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
     # Recover the private key index
     l = None
     for i in range(n):
-        if P[i] == dumber25519.G * p and C[i] == dumber25519.G * z:
+        if P[i] == df25519.G * p and C[i] == df25519.G * z:
             l = i
             break
     if l is None:
@@ -259,7 +259,7 @@ def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
     alpha = random_scalar()
 
     # Private index
-    aG = dumber25519.G * alpha
+    aG = df25519.G * alpha
     aH = hash_to_point(str(P[l])) * alpha
     c = hash_to_scalar(
         str_round + strP + strC_nonzero + str(C_offset) + str(msg) + str(aG) + str(aH)
@@ -274,7 +274,7 @@ def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
         cp = c * mu_P
         cc = c * mu_C
 
-        L = s[i] * dumber25519.G + cp * P[i] + cc * C[i]
+        L = s[i] * df25519.G + cp * P[i] + cc * C[i]
 
         R = s[i] * hash_to_point(str(P[i])) + cp * I + cc * D * Scalar(8)
 
@@ -352,7 +352,7 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset, details):
         cp = c * mu_P
         cc = c * mu_C
 
-        L = s[i] * dumber25519.G + cp * P[i] + cc * (C_nonzero[i] - C_offset)
+        L = s[i] * df25519.G + cp * P[i] + cc * (C_nonzero[i] - C_offset)
         R = s[i] * hash_to_point(str(P[i])) + cp * I + cc * D * Scalar(8)
 
         str_hash = str_round + strP + strC_nonzero + str(C_offset) + msg
@@ -405,11 +405,11 @@ def get_tx_hash_clsag(resp_json, resp_hex):
     ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0] + outPk
     ph3 = bp_A + bp_S + bp_T1 + bp_T2 + bp_taux + bp_mu + L + R + bp_a + bp_b + bp_t
 
-    ph1_hash = dumber25519.cn_fast_hash(ph1)
-    ph2_hash = dumber25519.cn_fast_hash(ph2)
-    ph3_hash = dumber25519.cn_fast_hash(ph3)
+    ph1_hash = df25519.cn_fast_hash(ph1)
+    ph2_hash = df25519.cn_fast_hash(ph2)
+    ph3_hash = df25519.cn_fast_hash(ph3)
 
-    return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
+    return df25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 
 
 def get_tx_hash_clsag_bp_plus(resp_json, resp_hex):
@@ -435,8 +435,8 @@ def get_tx_hash_clsag_bp_plus(resp_json, resp_hex):
     ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0] + outPk
     ph3 = bp_A + bp_A1 + bp_B + bp_r1 + bp_s1 + bp_d1 + L + R
 
-    ph1_hash = dumber25519.cn_fast_hash(ph1)
-    ph2_hash = dumber25519.cn_fast_hash(ph2)
-    ph3_hash = dumber25519.cn_fast_hash(ph3)
+    ph1_hash = df25519.cn_fast_hash(ph1)
+    ph2_hash = df25519.cn_fast_hash(ph2)
+    ph3_hash = df25519.cn_fast_hash(ph3)
 
-    return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
+    return df25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)

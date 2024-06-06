@@ -12,7 +12,6 @@ import scan_bc
 import settings
 import sys
 
-
 def menu1():
     print("---------------------------------------")
     print("WELCOME TO THE MONERO INFLATION CHECKER")
@@ -66,12 +65,13 @@ def menu2():
 
     elif val == "3":
         print("Continue scanning...")
-        if exists("height.txt"):
-            h = int(scan_bc.read_height())
+        filename = "height.txt"
+        if exists(filename):
+            h = int(scan_bc.read_height(filename))
         else:
             h = 0
-            scan_bc.write_height(str(h))
-        scan_bc.start_scanning(h)
+            scan_bc.write_height(filename, str(h))
+        scan_bc.start_scanning(filename, h)
 
     elif val == "4":
         print("Bye")
@@ -92,15 +92,27 @@ if __name__ == "__main__":
         while ans:
             ans = menu2()
 
-    else:
-        if sys.argv[1] == "scan_fast":
-            settings.node_choice(1)
-            print("Continue scanning...")
-            if exists("height.txt"):
-                h = int(scan_bc.read_height())
-            else:
-                h = 0
-                scan_bc.write_height(str(h))
-            scan_bc.start_scanning(h)
+    elif sys.argv[1] == "scan_fast":
+        settings.node_choice(1)
+        filename = "height.txt"
+        if exists(filename):
+            h = int(scan_bc.read_height(filename))
         else:
-            print("Unknow argument")
+            h = 0
+            scan_bc.write_height(filename, str(h))
+        scan_bc.start_scanning(filename, h)
+
+    elif sys.argv[1] == "scan_blocks":
+        settings.node_choice(1)
+        filename = "last_block_scanned.txt"
+        if exists(filename):
+            h = int(scan_bc.read_height(filename))
+        else:
+            h = 0
+            scan_bc.write_height(filename, str(h))
+        scan_bc.start_scanning(filename, h)
+
+    else:
+        print("Unknown argument.")
+
+

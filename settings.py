@@ -43,7 +43,6 @@ def node_choice(choice):
     else:
         url_str = "http://localhost:18081/"
 
-
 # M,N = 16,64
 
 # domain = str("bulletproof")

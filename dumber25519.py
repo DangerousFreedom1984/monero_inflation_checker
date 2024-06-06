@@ -655,22 +655,17 @@ def sqroot(xx):
             print("no square root!")
     return x
 
-
 def theD():
     return d
-
 
 def computeA():
     return 2 * ((1 - d) % q) * inv((1 + d) % q) % q
 
-
 def expmod(b, e, m):
     return pow(b, e, m)
 
-
 def modp_inv(x):
     return pow(x, q - 2, q)
-
 
 def inv(x):
     return pow(x, q - 2, q)
@@ -793,6 +788,8 @@ def multiexp(scalars, points):
     while maxscalar >= 2**groups:
         groups += 1
     groups = int((groups + c - 1) / c)
+
+    import ipdb; ipdb.set_trace()
 
     # loop is really (groups-1)..0
     for k in range(groups - 1, -1, -1):
