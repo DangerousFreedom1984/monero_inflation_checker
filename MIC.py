@@ -61,7 +61,9 @@ def menu2():
 
     elif val == "2":
         block_to_check = input("Enter block to check:")
-        scan_bc.scan_block(block_to_check)
+        filename = "last_block_scanned.txt"
+        scan_bc.write_height(filename, str(block_to_check))
+        scan_bc.start_scanning(filename, int(block_to_check))
 
     elif val == "3":
         print("Continue scanning...")

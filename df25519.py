@@ -1,8 +1,9 @@
 
-import Keccak  # cn_fast_hash
+# import Keccak  # cn_fast_hash
 import nacl.bindings
 import nacl.utils
 import binascii
+import sha3
 import time
 
 class Scalar:
@@ -28,7 +29,7 @@ class Scalar:
             raise TypeError
 
     # Multiplicative inversion
-    def invert(self):
+    def invert(self: Scalar) -> Scalar:
         return Scalar(nacl.bindings.crypto_core_ed25519_scalar_invert(self.b))
 
     # Addition
@@ -159,25 +160,25 @@ class Point:
 
     # Multiplication
     def __mul__(self, y):
-        # ti = time.time()
-        # Point-Scalar: scalar multiplication
         if isinstance(y, Scalar):
-            # if y == Scalar(0):
-            #     return Point(0)
             try:
-                # t_before_binascii = time.time()
-                # sk = binascii.a2b_hex(str(y).encode("utf-8"))
-                # pk = binascii.a2b_hex(str(self).encode("utf-8"))
-                # t_before_mult = time.time()
-                Q = nacl.bindings.crypto_scalarmult_ed25519_noclamp(y.b, self.b)
-                # t_after_mult = time.time()
-                # return Point(nacl.bindings.crypto_scalarmult_ed25519_noclamp(binascii.a2b_hex(str(y).encode('utf-8')),binascii.a2b_hex(str(self).encode('utf-8'))).hex())
-                # print("time to start func: " + str((t_before_binascii-ti)*10**6))
-                # print("time to convert binascii: " + str((t_before_mult - t_before_binascii)*10**6))
-                # print("time to multiply: " + str((t_after_mult - t_before_mult)*10**6))
-                return Point(Q)
+                return Point(nacl.bindings.crypto_scalarmult_ed25519_noclamp(y.b, self.b))
             except Exception as inst:
                 return "Error in multiplication"
+        return NotImplemented
+
+    def scalar_mult(s):
+        try:
+            return Point(nacl.bindings.crypto_scalarmult_ed25519_noclamp(s.b, self.b))
+        except Exception as inst:
+            return "Error in multiplication"
+        return NotImplemented
+
+    def scalar_mult_base(self, s):
+        try:
+            return Point(nacl.bindings.crypto_scalarmult_ed25519_base_noclamp(s.b))
+        except Exception as inst:
+            return "Error in multiplication"
         return NotImplemented
 
     def __rmul__(self, y):
@@ -463,8 +464,6 @@ def multiexp_naive(scalars, points):
 # Perform a multiscalar multiplication using a simplified Pippenger algorithm
 def multiexp(scalars, points):
 
-    t1 = time.time()
-
     if not isinstance(scalars, ScalarVector) or not isinstance(points, PointVector):
         raise TypeError
 
@@ -490,10 +489,6 @@ def multiexp(scalars, points):
     while maxscalar >= 2**groups:
         groups += 1
     groups = int((groups + c - 1) / c)
-
-    t2 = time.time()
-    print("time between t1-t2: " + str((t2-t1)*1000))
-    # import ipdb;ipdb.set_trace()
 
     # loop is really (groups-1)..0
     for k in range(groups - 1, -1, -1):
@@ -527,18 +522,16 @@ def multiexp(scalars, points):
                 result += pail
     return result
 
-def random_scalar(size: int = 32):
+def random_scalar():
     return Scalar(nacl.utils.random())
 
 def random_point():
     return hash_to_point("{:x}".format(secrets.randbits(b)))
 
-
 def cn_fast_hash(s):
-    k = Keccak.Keccak()
-    return k.Keccak(
-        (len(s) * 4, s), 1088, 512, 32 * 8, False
-    ).lower()  # r = bitrate = 1088, c = capacity, n = output length in bits
+    m = sha3.keccak_256()
+    m.update(binascii.a2b_hex(s))
+    return m.hexdigest()
 
 def hash_to_scalar(data):
     return Scalar(hex_to_int(cn_fast_hash(data)) % l)
@@ -634,10 +627,16 @@ def point_compress(P):
 
     bits = [(y >> i) & 1 for i in range(b - 1)] + [x & 1]
     
-    return Point(bytes.hex(bytes([sum([bits[i * 8 + j] << j for j in range(8)]) for i in range(b // 8)])))
+    bb = Point(bytes.hex(bytes([sum([bits[i * 8 + j] << j for j in range(8)]) for i in range(b // 8)])))
+
+    return bb 
+
+def verify_subgroup(P):
+    return nacl.bindings.crypto_core_ed25519_is_valid_point(P.b)
 
 
 # Curve parameters
+# k = Keccak.Keccak()
 q = 2**255 - 19
 l = 2**252 + 27742317777372353535851937790883648493
 cofactor = 8

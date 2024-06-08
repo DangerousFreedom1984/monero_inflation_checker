@@ -4,8 +4,8 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
     "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
-import dumber25519
-from dumber25519 import Scalar, Point, PointVector
+import df25519
+from df25519 import Scalar, Point, PointVector
 import com_db
 import numpy as np
 
@@ -59,7 +59,7 @@ def s_to_scalar(ss, rows):
     return s_scalar
 
 
-def get_members_and_masks_in_rings(resp_json: Dict) -> Tuple[List[List[dumber25519.Point]], List[List[dumber25519.Point]]]:
+def get_members_and_masks_in_rings(resp_json: Dict) -> Tuple[List[List[df25519.Point]], List[List[df25519.Point]]]:
     members_all, masks_all = com_db.get_members_and_masks([
         (int(vin["key"]["amount"]), int(index))
         for vin in resp_json["vin"]
@@ -82,10 +82,10 @@ def get_pseudo_outs(resp_json, pseudo_index=0):
         pseudos = Point(resp_json["rct_signatures"]["pseudoOuts"][pseudo_index])
         return pseudos
     else:
-        Ptemp = Scalar(0) * dumber25519.G
+        Ptemp = Scalar(0) * df25519.G
         for i in range(len(resp_json["rct_signatures"]["outPk"])):
             Ptemp += Point(resp_json["rct_signatures"]["outPk"][i])
-        return Ptemp + Scalar(resp_json["rct_signatures"]["txnFee"]) * dumber25519.H
+        return Ptemp + Scalar(resp_json["rct_signatures"]["txnFee"]) * df25519.H
 
 
 def get_pseudo_outs_bp1(resp_json, pseudo_index=0):
@@ -99,8 +99,7 @@ def verify_ki(ki):
     str_out += "--------------------------------------------------------\n"
     str_out += "-------------------Checking Key Image-------------------\n"
     str_out += "--------------------------------------------------------\n"
-    res = dumber25519.mul_verify_group(ki, Scalar(1))
-    if res != "failed":
+    if df25519.verify_subgroup(Point(str(ki))):
         str_out += (
             "Point " + str(ki) + " belongs to the G subgroup.\n Everything is fine."
         )

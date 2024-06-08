@@ -22,6 +22,7 @@ import multiprocessing
 import check_rangeproofs
 from concurrent.futures import as_completed, ProcessPoolExecutor
 import settings
+import time
 
 
 def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details):
@@ -126,6 +127,15 @@ def ring_sig_correct_bp_plus(
                         details,
                     )
                 )
+            # check_sig_clsag_bp1(
+            #             resp_json,
+            #             sig_ind,
+            #             inputs,
+            #             rows,
+            #             pubs,
+            #             masks,
+            #             message,
+            #             details)
 
         except:
             print(
@@ -293,6 +303,8 @@ def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
 
 
 def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset, details):
+    ttt1 = time.time()
+
     str_out = "\n"
     str_out += "--------------------------------------------------------\n"
     str_out += "-------------Checking CLSAG Ring Signature--------------\n"
@@ -308,6 +320,21 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset, details):
     str_out += "\n"
     str_out += "Signature s: " + str(s)
     str_out += "\n"
+
+    # print("msg = " + str(msg))
+    # print("c1 = Scalar('" + str(c1) + "')")
+    # print("s = ScalarVector([])")
+    # for i in range(len(s)):
+    #     print("s.append(Scalar('" + str(s[i])+"'))")
+    # print("D_aux = Point('" + str(D_aux) + "')")
+    # print("I = Point('" + str(I) + "')")
+    # print("P = VectorPoint([])")
+    # for i in range(len(P)):
+    #     print("P.append(Point('" + str(P[i])+"'))")
+    # print("C_nonzero = VectorPoint([])")
+    # for i in range(len(C_nonzero)):
+    #     print("C_nonzero.append(Point('" + str(C_nonzero[i])+"'))")
+    # print("C_offset = Point('" + str(C_offset)+ "')")
 
     domain0 = "CLSAG_agg_0"
     domain1 = "CLSAG_agg_1"
@@ -352,8 +379,11 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset, details):
         cp = c * mu_P
         cc = c * mu_C
 
-        L = s[i] * df25519.G + cp * P[i] + cc * (C_nonzero[i] - C_offset)
-        R = s[i] * hash_to_point(str(P[i])) + cp * I + cc * D * Scalar(8)
+        # import ipdb;ipdb.set_trace()
+        # L = s[i] * df25519.G + cp*P[i] + cc*(C_nonzero[i] - C_offset)
+        # R = s[i] * hash_to_point(str(P[i])) + cp * I + cc * D8
+        L = df25519.G.scalar_mult_base(s[i]) + cp * P[i] + cc*(C_nonzero[i] - C_offset)
+        R = s[i] * hash_to_point(str(P[i])) + cp * I + Scalar(8) * cc * D 
 
         str_hash = str_round + strP + strC_nonzero + str(C_offset) + msg
         str_hash += str(L) + str(R)

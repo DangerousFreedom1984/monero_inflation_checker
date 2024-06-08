@@ -8,7 +8,7 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import json
 import requests
 import settings
-import dumber25519
+import df25519
 
 from typing import List, Tuple
 
@@ -34,7 +34,7 @@ def get_block(params_block):
     return resp_json
 
 
-def get_members_and_masks(amount_and_index_list: List[Tuple[int, int]]) -> Tuple[List[dumber25519.Point], List[dumber25519.Point]]:
+def get_members_and_masks(amount_and_index_list: List[Tuple[int, int]]) -> Tuple[List[df25519.Point], List[df25519.Point]]:
     url = settings.url_str + "get_outs"
     headers = {"Content-Type": "application/json"}
     rpc_input = {"outputs": [{"amount": amount_and_index[0], "index": amount_and_index[1]} for amount_and_index in amount_and_index_list]}
@@ -46,7 +46,7 @@ def get_members_and_masks(amount_and_index_list: List[Tuple[int, int]]) -> Tuple
     outs = response.json()["outs"]
     assert len(outs) == len(amount_and_index_list)
 
-    return [dumber25519.Point(out["key"]) for out in outs], [dumber25519.Point(out["mask"]) for out in outs]
+    return [df25519.Point(out["key"]) for out in outs], [df25519.Point(out["mask"]) for out in outs]
 
 
 def get_tx(txs, index):

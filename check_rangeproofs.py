@@ -9,8 +9,8 @@ import misc_func
 import json
 
 # from varint import encode as to_varint
-import dumber25519
-from dumber25519 import (
+import df25519
+from df25519 import (
     Scalar,
     Point,
     ScalarVector,
@@ -24,7 +24,7 @@ from dumber25519 import (
 import copy
 import varint_mic as varint
 import multiprocessing
-import settings
+import settings_df25519
 import time
 
 
@@ -51,13 +51,13 @@ def check_commitments(resp_json):
     str_com += "------------------Checking Commitments------------------\n"
     str_com += "--------------------------------------------------------\n"
     if "pseudoOuts" in resp_json["rct_signatures"]:
-        Cin = Scalar(0) * dumber25519.G
-        Cout = Scalar(0) * dumber25519.G
+        Cin = Scalar(0) * df25519.G
+        Cout = Scalar(0) * df25519.G
         for i in range(len(resp_json["rct_signatures"]["pseudoOuts"])):
             Cin += Point(resp_json["rct_signatures"]["pseudoOuts"][i])
         for i in range(len(resp_json["rct_signatures"]["outPk"])):
             Cout += Point(resp_json["rct_signatures"]["outPk"][i])
-        Fee = Scalar(resp_json["rct_signatures"]["txnFee"]) * dumber25519.H
+        Fee = Scalar(resp_json["rct_signatures"]["txnFee"]) * df25519.H
 
         str_com += "Sum of Cin = " + str(Cin)
         str_com += "\n"
@@ -68,7 +68,7 @@ def check_commitments(resp_json):
         res = Cin - Cout - Fee
         str_com += "Result (Cin - Cout - Fee) = " + str(res)
         str_com += "\n"
-        if res != dumber25519.Z:
+        if res != df25519.Z:
             str_com += "Inflation may be happening! Commitments do not match!"
             print("Inflation may be happening! Commitments do not match!")
             with open("error.txt", "a+") as file1:
@@ -103,7 +103,7 @@ def get_borromean_vars(resp_json, ind):
         P2.append(
             P1[i]
             - Scalar(2**i * 8)
-            * dumber25519.Point(dumber25519.cn_fast_hash(str(dumber25519.G)))
+            * df25519.Point(df25519.cn_fast_hash(str(df25519.G)))
         )
 
     return P1, P2, bbee, bbs0, bbs1
@@ -118,14 +118,14 @@ def check_Borromean(P1, P2, bbee, bbs0, bbs1, details=0):
     str_out += "--------------------------------------------------------"
     str_out += "\n"
     for j in range(64):
-        LL = bbee * P1[j] + bbs0[j] * dumber25519.G
-        chash = dumber25519.hash_to_scalar(str(LL))
-        LV += str(chash * P2[j] + bbs1[j] * dumber25519.G)
+        LL = bbee * P1[j] + bbs0[j] * df25519.G
+        chash = df25519.hash_to_scalar(str(LL))
+        LV += str(chash * P2[j] + bbs1[j] * df25519.G)
         str_out += str("LL = ")
         str_out += str(LL)
         str_out += "\n"
 
-    eeComp = dumber25519.hash_to_scalar(LV)
+    eeComp = df25519.hash_to_scalar(LV)
     str_out += str("eeComp = ")
     str_out += str(eeComp)
     str_out += "\n"
@@ -158,23 +158,23 @@ def generate_Borromean(ai, Ci, CiH, b):
     for i in range(64):
         naught = int(b[i])
         prime = (int(b[i]) + 1) % 2
-        alpha.append(dumber25519.random_scalar())
-        L[naught][i] = alpha[i] * dumber25519.G
+        alpha.append(df25519.random_scalar())
+        L[naught][i] = alpha[i] * df25519.G
         if naught == 0:
-            bbs1[i] = dumber25519.random_scalar()
-            c = dumber25519.hash_to_scalar(str(L[naught][i]))
-            L[prime][i] = bbs1[i] * dumber25519.G + c * CiH[i]
+            bbs1[i] = df25519.random_scalar()
+            c = df25519.hash_to_scalar(str(L[naught][i]))
+            L[prime][i] = bbs1[i] * df25519.G + c * CiH[i]
         L1 += str(L[1][i])
 
-    bbee = dumber25519.hash_to_scalar(L1)
+    bbee = df25519.hash_to_scalar(L1)
 
     for j in range(64):
         if int(b[j]) == 0:
             bbs0[j] = alpha[j] - ai[j] * bbee
         else:
-            bbs0[j] = dumber25519.random_scalar()
-            LL = bbs0[j] * dumber25519.G + bbee * Ci[j]
-            cc = dumber25519.hash_to_scalar(str(LL))
+            bbs0[j] = df25519.random_scalar()
+            LL = bbs0[j] * df25519.G + bbee * Ci[j]
+            cc = df25519.hash_to_scalar(str(LL))
             bbs1[j] = alpha[j] - ai[j] * cc
 
     return bbee, bbs0, bbs1
@@ -188,13 +188,13 @@ def check_commitments_bp1(resp_json):
     str_com += "\n--------------------------------------------------------\n"
     str_com += "------------------Checking Commitments------------------\n"
     str_com += "--------------------------------------------------------\n"
-    Cin = Scalar(0) * dumber25519.G
-    Cout = Scalar(0) * dumber25519.G
+    Cin = df25519.Z
+    Cout = df25519.Z
     for i in range(len(resp_json["rctsig_prunable"]["pseudoOuts"])):
         Cin += Point(resp_json["rctsig_prunable"]["pseudoOuts"][i])
     for i in range(len(resp_json["rct_signatures"]["outPk"])):
         Cout += Point(resp_json["rct_signatures"]["outPk"][i])
-    Fee = Scalar(resp_json["rct_signatures"]["txnFee"]) * dumber25519.H
+    Fee = Scalar(resp_json["rct_signatures"]["txnFee"]) * df25519.H
 
     str_com += "Sum of Cin = " + str(Cin)
     str_com += "\n"
@@ -205,7 +205,7 @@ def check_commitments_bp1(resp_json):
     res = Cin - Cout - Fee
     str_com += "Result (Cin - Cout - Fee) = " + str(res)
     str_com += "\n"
-    if res != dumber25519.Z:
+    if res != df25519.Z:
         str_com += "Inflation may be happening! Commitments do not match!"
         print("Inflation may be happening! Commitments do not match!")
         with open("error.txt", "a+") as file1:
@@ -327,11 +327,11 @@ def check_bp1(proofs):
     max_MN = 2 ** max([len(proof[7]) for proof in proofs])
 
     # curve points
-    Z = dumber25519.Z
-    G = dumber25519.G
+    Z = df25519.Z
+    G = df25519.G
 
     domain = str("bulletproof")
-    H = dumber25519.H
+    H = df25519.H
 
     # set up weighted aggregates
     y0 = Scalar(0)
@@ -459,9 +459,9 @@ def check_bp1(proofs):
     points.append(H)
     for i in range(M * N):
         scalars.append(z4[i])
-        points.append(settings.Gi[i])
+        points.append(settings_df25519.Gi_df[i])
         scalars.append(z5[i])
-        points.append(settings.Hi[i])
+        points.append(settings.Hi_df[i])
 
     str_out = ""
     str_out += "\n--------------------------------------------------------\n"
@@ -494,7 +494,7 @@ def check_bp1(proofs):
     str_out += str(t)
 
     str_out += "\n"
-    if not dumber25519.multiexp_naive(scalars, points) == Z:
+    if not df25519.multiexp_naive(scalars, points) == Z:
         raise ArithmeticError("Bad z check!")
         str_out += "Bulletproof check FAILED"
         return False, str_out
@@ -506,12 +506,12 @@ def check_bp1(proofs):
 
 def check_bp_plus(proofs):
 
-    ti = time.time()
+    # ti = time.time()
 
     # curve points
-    Z = dumber25519.Z
-    G = dumber25519.G
-    H = dumber25519.H
+    Z = df25519.Z
+    G = df25519.G
+    H = df25519.H
 
     domain = str("bulletproof_plus")
 
@@ -529,8 +529,8 @@ def check_bp_plus(proofs):
     # Store auxiliary data
     aux = []
 
-    t1 = time.time()
-    print("Time until here 1: " + str(t1 - ti))
+    # t1 = time.time()
+    # print("Time until here 1: " + str(t1 - ti))
 
     # Process each proof and add it to the batch
     for proof in proofs:
@@ -616,8 +616,8 @@ def check_bp_plus(proofs):
         if e == Scalar(0):
             raise ArithmeticError("Bad verifier challenge!")
 
-        t2 = time.time()
-        print("Time until here 2: " + str(t2 - t1))
+        # t2 = time.time()
+        # print("Time until here 2: " + str(t2 - t1))
         ## Add V terms to multiexp
         for j in range(len(V)):
             scalars.append(weight * (-(e**2) * z ** (2 * (j + 1)) * y ** (M * N + 1)))
@@ -684,9 +684,9 @@ def check_bp_plus(proofs):
     # Common generators
     for i in range(MN):
         scalars.append(Gi_scalars[i])
-        points.append(settings.Gi_plus[i])
+        points.append(settings_df25519.Gi_plus_df[i])
         scalars.append(Hi_scalars[i])
-        points.append(settings.Hi_plus[i])
+        points.append(settings_df25519.Hi_plus_df[i])
 
     str_out = ""
     # str_out += "\n--------------------------------------------------------\n"
@@ -714,20 +714,20 @@ def check_bp_plus(proofs):
 
     # str_out += "\n"
 
-    t3 = time.time()
-    print("Time until here 3: " + str(t3 - t2))
+    # t3 = time.time()
+    # print("Time until here 3: " + str(t3 - t2))
 
-    tbm = time.time()
-    print("Time until multiexp: " + str(tbm-ti))
+    # tbm = time.time()
+    # print("Time until multiexp: " + str(tbm-ti))
     # str_out += "Time until multiexp: " + str(time.time() - tbp)
-    import ipdb;ipdb.set_trace()
-    if not dumber25519.multiexp(scalars, points) == Z:
-    # if not dumber25519.multiexp(scalars, points) == Z:
+    # import ipdb;ipdb.set_trace()
+    if not df25519.multiexp_naive(scalars, points) == Z:
+    # if not df25519.multiexp(scalars, points) == Z:
         str_out += "Bulletproof+ check FAILED"
         return False, str_out
 
-    tam = time.time()
-    print("Time for multiexponentiation: " + str(tam - tbm))
+    # tam = time.time()
+    # print("Time for multiexponentiation: " + str(tam - tbm))
     str_out += "Bulletproof+ passed!"
     str_out += "The value committed represents the true value with a negligible probability otherwise."
     # str_out += "Total time to execute: " + str(time.time()-tbp)
@@ -983,7 +983,7 @@ def prove_bp_plus(sv, gamma):
     N = 64
     M = 2
     MN = M * N
-    G = dumber25519.G
+    G = df25519.G
     domain = str("bulletproof_plus")
     H = Scalar(8) * Point(cn_fast_hash(str(G)))
     Hi_plus = PointVector(
@@ -1127,6 +1127,6 @@ if __name__ == "__main__":
     scalar = random_scalar()
     t1_op = time.time()
     for i in range(1000):
-        scalar*dumber25519.G
+        scalar*df25519.G
     print("Time to verify op : " + str((time.time()-t1_op)*1000) + str(" ms"))
     
