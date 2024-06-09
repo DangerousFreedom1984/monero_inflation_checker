@@ -21,7 +21,6 @@ import copy
 import multiprocessing
 import check_rangeproofs
 from concurrent.futures import as_completed, ProcessPoolExecutor
-import settings
 import time
 
 
@@ -124,18 +123,8 @@ def ring_sig_correct_bp_plus(
                         pubs,
                         masks,
                         message,
-                        details,
                     )
                 )
-            # check_sig_clsag_bp1(
-            #             resp_json,
-            #             sig_ind,
-            #             inputs,
-            #             rows,
-            #             pubs,
-            #             masks,
-            #             message,
-            #             details)
 
         except:
             print(
@@ -184,7 +173,7 @@ def ring_sig_correct_bp_plus(
 
 
 def check_sig_clsag_bp1(
-    resp_json, sig_ind, inputs, rows, pubs, masks, message, details
+    resp_json, sig_ind, inputs, rows, pubs, masks, message 
 ):
     pubs_current = pubs[sig_ind]
     masks_current = masks[sig_ind]
@@ -196,8 +185,8 @@ def check_sig_clsag_bp1(
     D = Point(resp_json["rctsig_prunable"]["CLSAGs"][sig_ind]["D"])
     I = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
-    verified, str_out = check_CLSAG(
-        message, s_scalar, c1, D, I, pubs_current, masks_current, C_offset, details
+    verified = check_CLSAG(
+        message, s_scalar, c1, D, I, pubs_current, masks_current, C_offset 
     )
     if verified == False:
         print("Signatures dont match! Verify this block")
@@ -212,7 +201,7 @@ def check_sig_clsag_bp1(
             )
         raise Exception("ring_signature_failure")
 
-    return str_out
+    return ""
 
 
 def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
@@ -300,41 +289,23 @@ def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
     s[l] = alpha - c * (p * mu_P + mu_C * z)
 
     return s, c1, D
+class CLSAG:
+    def __init__(self, msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
+        self.msg = msg
+        self.s = s
+        self.c1 = c1 
+        self.D_aux = D_aux
+        self.I = I 
+        self.P = P
+        self.C_nonzero = C_nonzero 
+        self.C_offset = C_offset
 
+def check_CLSAGs(clsags):
+    for c in clsags:
+        check_CLSAG(c.msg, c.s, c.c1, c.D_aux, c.I, c.P, c.C_nonzero, c.C_offset)
+    return True
 
-def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset, details):
-    ttt1 = time.time()
-
-    str_out = "\n"
-    str_out += "--------------------------------------------------------\n"
-    str_out += "-------------Checking CLSAG Ring Signature--------------\n"
-    str_out += "--------------------------------------------------------\n"
-    str_out += "Arguments of check_ring_signature: "
-    str_out += "Prefix: " + str(msg)
-    str_out += "\n"
-    str_out += "Key_image: " + str(I)
-    str_out += "\n"
-    str_out += "Public keys: " + str(P)
-    str_out += "\n"
-    str_out += "Signature c1: " + str(c1)
-    str_out += "\n"
-    str_out += "Signature s: " + str(s)
-    str_out += "\n"
-
-    # print("msg = " + str(msg))
-    # print("c1 = Scalar('" + str(c1) + "')")
-    # print("s = ScalarVector([])")
-    # for i in range(len(s)):
-    #     print("s.append(Scalar('" + str(s[i])+"'))")
-    # print("D_aux = Point('" + str(D_aux) + "')")
-    # print("I = Point('" + str(I) + "')")
-    # print("P = VectorPoint([])")
-    # for i in range(len(P)):
-    #     print("P.append(Point('" + str(P[i])+"'))")
-    # print("C_nonzero = VectorPoint([])")
-    # for i in range(len(C_nonzero)):
-    #     print("C_nonzero.append(Point('" + str(C_nonzero[i])+"'))")
-    # print("C_offset = Point('" + str(C_offset)+ "')")
+def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
 
     domain0 = "CLSAG_agg_0"
     domain1 = "CLSAG_agg_1"
@@ -393,20 +364,10 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset, details):
 
     c_final = c - c1
 
-    str_out += "Calculating c_final = c - c1 :"
-    str_out += "\n"
-    res = (c - c1) == Scalar(0)
-    str_out += str(c - c1)
-    str_out += "\n"
-    if res:
-        str_out += "Transaction is valid. The signature matches the data."
-    else:
-        str_out += "Transaction is invalid. The signature does not match the data."
+    if (c - c1) == Scalar(0):
+        return True
 
-    str_out += "\n"
-    str_out += "--------------------------------------------------------"
-    str_out += "\n"
-    return res, str_out
+    return False
 
 
 def get_tx_hash_clsag(resp_json, resp_hex):

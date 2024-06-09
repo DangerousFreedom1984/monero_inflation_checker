@@ -227,7 +227,7 @@ def check_commitments_bp1(resp_json):
 
 def check_sig_bp1(resp_json):
     proofs = get_vars_bp1(resp_json)
-    verified, str_out = check_bp1([proofs])
+    verified = check_bp1([proofs])
     if not verified:
         print(
             "Potential inflation in Bulletproofs Signatures! Please verify what is happening!"
@@ -239,12 +239,12 @@ def check_sig_bp1(resp_json):
                 "\nPotential inflation in Bulletproofs ! Please verify what is happening!"
             )
         raise Exception("bulletproof_failed")
-    return str_out
+    return "" 
 
 
 def check_sig_bp_plus(resp_json):
     proofs = get_vars_bp_plus(resp_json)
-    verified, str_out = check_bp_plus([proofs])
+    verified = check_bp_plus([proofs])
     if not verified:
         print(
             "Potential inflation in Bulletproofs+ Signatures! Please verify what is happening!"
@@ -256,7 +256,7 @@ def check_sig_bp_plus(resp_json):
                 "\nPotential inflation in Bulletproofs+ ! Please verify what is happening!"
             )
         raise Exception("bulletproofplus_failed")
-    return str_out
+    return ""
 
 
 def get_vars_bp1(resp_json):
@@ -319,7 +319,6 @@ def get_vars_bp_plus(resp_json):
         V.append(inv8 * Point(outPk_aux[i]))
 
     return [V, A, A1, B, r1, s1, d1, L, R]
-
 
 def check_bp1(proofs):
     N = 64
@@ -461,7 +460,7 @@ def check_bp1(proofs):
         scalars.append(z4[i])
         points.append(settings_df25519.Gi_df[i])
         scalars.append(z5[i])
-        points.append(settings.Hi_df[i])
+        points.append(settings_df25519.Hi_df[i])
 
     str_out = ""
     str_out += "\n--------------------------------------------------------\n"
@@ -494,6 +493,7 @@ def check_bp1(proofs):
     str_out += str(t)
 
     str_out += "\n"
+    # import ipdb;ipdb.set_trace()
     if not df25519.multiexp_naive(scalars, points) == Z:
         raise ArithmeticError("Bad z check!")
         str_out += "Bulletproof check FAILED"
@@ -504,9 +504,8 @@ def check_bp1(proofs):
     return True, str_out
 
 
-def check_bp_plus(proofs):
 
-    # ti = time.time()
+def check_bp_plus(proofs):
 
     # curve points
     Z = df25519.Z
@@ -528,9 +527,6 @@ def check_bp_plus(proofs):
 
     # Store auxiliary data
     aux = []
-
-    # t1 = time.time()
-    # print("Time until here 1: " + str(t1 - ti))
 
     # Process each proof and add it to the batch
     for proof in proofs:
@@ -616,8 +612,6 @@ def check_bp_plus(proofs):
         if e == Scalar(0):
             raise ArithmeticError("Bad verifier challenge!")
 
-        # t2 = time.time()
-        # print("Time until here 2: " + str(t2 - t1))
         ## Add V terms to multiexp
         for j in range(len(V)):
             scalars.append(weight * (-(e**2) * z ** (2 * (j + 1)) * y ** (M * N + 1)))
@@ -688,50 +682,10 @@ def check_bp_plus(proofs):
         scalars.append(Hi_scalars[i])
         points.append(settings_df25519.Hi_plus_df[i])
 
-    str_out = ""
-    # str_out += "\n--------------------------------------------------------\n"
-    # str_out += "------------------Checking Rangeproofs------------------\n"
-    # str_out += "--------------------------------------------------------\n"
-    # str_out += "Verifying the Bulletproofs equation with inputs: \n"
-    # str_out += "\nV: \n"
-    # str_out += str(V)
-    # str_out += "\nA: \n"
-    # str_out += str(A)
-    # str_out += "\nA1: \n"
-    # str_out += str(A1)
-    # str_out += "\nB: \n"
-    # str_out += str(B)
-    # str_out += "\nr1: \n"
-    # str_out += str(r1)
-    # str_out += "\ns1: \n"
-    # str_out += str(s1)
-    # str_out += "\nd1: \n"
-    # str_out += str(d1)
-    # str_out += "\nL: \n"
-    # str_out += str(L)
-    # str_out += "\nR: \n"
-    # str_out += str(R)
+    if df25519.multiexp_naive(scalars, points) == Z:
+        return True 
 
-    # str_out += "\n"
-
-    # t3 = time.time()
-    # print("Time until here 3: " + str(t3 - t2))
-
-    # tbm = time.time()
-    # print("Time until multiexp: " + str(tbm-ti))
-    # str_out += "Time until multiexp: " + str(time.time() - tbp)
-    # import ipdb;ipdb.set_trace()
-    if not df25519.multiexp_naive(scalars, points) == Z:
-    # if not df25519.multiexp(scalars, points) == Z:
-        str_out += "Bulletproof+ check FAILED"
-        return False, str_out
-
-    # tam = time.time()
-    # print("Time for multiexponentiation: " + str(tam - tbm))
-    str_out += "Bulletproof+ passed!"
-    str_out += "The value committed represents the true value with a negligible probability otherwise."
-    # str_out += "Total time to execute: " + str(time.time()-tbp)
-    return True, str_out
+    return False 
 
 
 ################### BP functions ##################
@@ -785,8 +739,8 @@ def inner_product(data, hash_cache):
     n = n // 2
     cL = a[:n] ** b[n:]
     cR = a[n:] ** b[:n]
-    L = (G[n:] * a[:n] + H[:n] * b[n:] + U * cL) * inv8
-    R = (G[:n] * a[n:] + H[n:] * b[:n] + U * cR) * inv8
+    L = (G[n:] * a[:n] + H[:n] * b[n:] + U * cL) * df25519.inv8
+    R = (G[:n] * a[n:] + H[n:] * b[:n] + U * cR) * df25519.inv8
 
     x = mash(str(hash_cache), str(L), str(R))  # corresponds to w[round]
     hash_cache = copy.copy(x)
@@ -883,8 +837,8 @@ def inner_product(data):
             + data.Hi[0] * s
             + data.H * (r * data.y * data.b[0] + s * data.y * data.a[0])
             + data.G * d
-        ) * inv8
-        data.B = (data.H * (r * data.y * s) + data.G * eta) * inv8
+        ) * df25519.inv8
+        data.B = (data.H * (r * data.y * s) + data.G * eta) * df25519.inv8
 
         data.tr = mash(str(data.tr), str(data.A), str(data.B))
         e = copy.copy(data.tr)
@@ -916,7 +870,7 @@ def inner_product(data):
         * inv8
     )
     data.R.append(
-        (G1 ** (a2 * data.y**n) + H2**b1 + data.H * cR + data.G * dR) * inv8
+        (G1 ** (a2 * data.y**n) + H2**b1 + data.H * cR + data.G * dR) * df25519.inv8
     )
 
     data.tr = mash(str(data.tr), str(data.L[-1]), str(data.R[-1]))
@@ -983,35 +937,13 @@ def prove_bp_plus(sv, gamma):
     N = 64
     M = 2
     MN = M * N
-    G = df25519.G
     domain = str("bulletproof_plus")
-    H = Scalar(8) * Point(cn_fast_hash(str(G)))
-    Hi_plus = PointVector(
-        [
-            hash_to_point(
-                cn_fast_hash(
-                    str(H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i)
-                )
-            )
-            for i in range(0, 2 * M * N, 2)
-        ]
-    )
-    Gi_plus = PointVector(
-        [
-            hash_to_point(
-                cn_fast_hash(
-                    str(H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i)
-                )
-            )
-            for i in range(1, 2 * M * N + 1, 2)
-        ]
-    )
-    # set amount commitments
+
     V = PointVector([])
     aL = ScalarVector([])
     len_data = len(sv)
     for i in range(len_data):
-        V.append((H * sv[i] + G * gamma[i]) * inv8)
+        V.append((df25519.H * sv[i] + df25519.G * gamma[i]) * df25519.inv8)
         aL.extend(scalar_to_bits(sv[i], N))
 
     # set bit arrays
@@ -1033,7 +965,7 @@ def prove_bp_plus(sv, gamma):
 
     alpha = random_scalar()
 
-    A = (Gi_plus * aL + Hi_plus * aR + G * alpha) * inv8
+    A = (settings_df25519.Gi_plus_df[0:64] * aL + settings_df25519.Hi_plus_df[0:64] * aR + df25519.G * alpha) * df25519.inv8
 
     y = mash(str(transcript), str(A))
 
@@ -1055,8 +987,8 @@ def prove_bp_plus(sv, gamma):
     aL1 = vector_subtract(aL, z)
     aR1 = vector_add(aR, z)
     d_y = []
-    for i in range(MN):
-        d_y.append(d[i] * y_powers[MN - i])
+    for i in range(N):
+        d_y.append(d[i] * y_powers[N - i])
 
     aR1 = vector_add_vec(aR1, d_y)
 
@@ -1069,8 +1001,18 @@ def prove_bp_plus(sv, gamma):
 
     seed = None
 
+
     ip_data = InnerProductRound(
-        Gi_plus, Hi_plus, G, H, aL1, aR1, alpha1, y, transcript, seed
+        settings_df25519.Gi_plus_df,
+        settings_df25519.Hi_plus_df,
+        df25519.G,
+        df25519.H,
+        aL1,
+        aR1,
+        alpha1,
+        y,
+        transcript,
+        seed
     )
     while True:
         inner_product(ip_data)

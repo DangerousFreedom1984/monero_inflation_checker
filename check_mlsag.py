@@ -7,8 +7,8 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import com_db
 import misc_func
 import json
-import dumber25519
-from dumber25519 import Scalar, Point, PointVector, ScalarVector
+import df25519
+from df25519 import Scalar, Point, PointVector, ScalarVector
 import copy
 import multiprocessing
 import check_rangeproofs
@@ -132,10 +132,12 @@ def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, det
         str_inp.append(res.result())
 
     x = []
+    str_out = ""
     for sig_ind in range(1):
         try:
-            with ProcessPoolExecutor() as exe:
-                x.append(exe.submit(check_rangeproofs.check_sig_bp1, resp_json))
+            # with ProcessPoolExecutor() as exe:
+            #     x.append(exe.submit(check_rangeproofs.check_sig_bp1, resp_json))
+            ver_bp, str_out = check_rangeproofs.check_sig_bp1(resp_json)
         except:
             print(
                 "Verify block_height: "
@@ -145,9 +147,8 @@ def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, det
                 + " Bulletproofs failed"
             )
 
-    str_out = []
-    for res in as_completed(x):
-        str_out.append(res.result())
+    # for res in as_completed(x):
+    #     str_out.append(res.result())
 
     try:
         str_commits = check_rangeproofs.check_commitments_bp1(resp_json)
@@ -227,21 +228,21 @@ def generate_MLSAG(m, PK, sk, index):
     msg0 = ""
     msg0 += str(m)
 
-    alpha0 = dumber25519.random_scalar()
-    aG0 = alpha0 * dumber25519.G
-    aHP = alpha0 * dumber25519.hash_to_point(str(PK[index][0]))
+    alpha0 = df25519.random_scalar()
+    aG0 = alpha0 * df25519.G
+    aHP = alpha0 * df25519.hash_to_point(str(PK[index][0]))
     msg0 += str(PK[index][0])
     msg0 += str(aG0)
     msg0 += str(aHP)
 
-    alpha1 = dumber25519.random_scalar()
-    aG1 = alpha1 * dumber25519.G
+    alpha1 = df25519.random_scalar()
+    aG1 = alpha1 * df25519.G
     msg0 += str(PK[index][1])
     msg0 += str(aG1)
 
-    I0 = sk[0] * dumber25519.hash_to_point(str(PK[index][0]))
+    I0 = sk[0] * df25519.hash_to_point(str(PK[index][0]))
 
-    c_old = dumber25519.hash_to_scalar(msg0)
+    c_old = df25519.hash_to_scalar(msg0)
     i = (index + 1) % rows
     if i == 0:
         cc = copy.copy(c_old)
@@ -252,20 +253,20 @@ def generate_MLSAG(m, PK, sk, index):
         msg = ""
         msg += str(m)
 
-        ss[i][0] = dumber25519.random_scalar()
-        ss[i][1] = dumber25519.random_scalar()
+        ss[i][0] = df25519.random_scalar()
+        ss[i][1] = df25519.random_scalar()
 
-        L1 = ss[i][0] * dumber25519.G + c_old * PK[i][0]
-        R = ss[i][0] * dumber25519.hash_to_point(str(PK[i][0])) + c_old * I0
+        L1 = ss[i][0] * df25519.G + c_old * PK[i][0]
+        R = ss[i][0] * df25519.hash_to_point(str(PK[i][0])) + c_old * I0
         msg += str(PK[i][0])
         msg += str(L1)
         msg += str(R)
 
-        L2 = ss[i][1] * dumber25519.G + c_old * PK[i][1]
+        L2 = ss[i][1] * df25519.G + c_old * PK[i][1]
         msg += str(PK[i][1])
         msg += str(L2)
 
-        c_old = dumber25519.hash_to_scalar(msg)
+        c_old = df25519.hash_to_scalar(msg)
         i = (i + 1) % rows
         if i == 0:
             cc = copy.copy(c_old)
@@ -313,8 +314,8 @@ def check_MLSAG(m, PK, I, c, ss, details=0):
         )
         str_out += "\n"
 
-        L1 = ss[i][0] * dumber25519.G + c_old * PK[i][0]
-        R = ss[i][0] * dumber25519.hash_to_point(str(PK[i][0])) + c_old * I
+        L1 = ss[i][0] * df25519.G + c_old * PK[i][0]
+        R = ss[i][0] * df25519.hash_to_point(str(PK[i][0])) + c_old * I
 
         str_out += "L1 calculated for index = " + str(i)
         str_out += "\n"
@@ -329,7 +330,7 @@ def check_MLSAG(m, PK, I, c, ss, details=0):
         toHash += str(L1)
         toHash += str(R)
 
-        L2 = ss[i][1] * dumber25519.G + c_old * PK[i][1]
+        L2 = ss[i][1] * df25519.G + c_old * PK[i][1]
         toHash += str(PK[i][1])
         toHash += str(L2)
 
@@ -342,7 +343,7 @@ def check_MLSAG(m, PK, I, c, ss, details=0):
         str_out += str(L2)
         str_out += "\n"
 
-        c_old = dumber25519.hash_to_scalar(toHash)
+        c_old = df25519.hash_to_scalar(toHash)
         i = i + 1
         str_out += "Calculating c_old: " + str(c_old)
         str_out += "\n"
@@ -375,11 +376,11 @@ def get_tx_hash_mlsag(resp_json, resp_hex):
     ph2 = resp_hex.split(extra_hex)[1].split(asig)[0]
     ph3 = resp_hex.split(resp_json["rct_signatures"]["outPk"][-1])[1].split(ss[0][0])[0]
 
-    ph1_hash = dumber25519.cn_fast_hash(ph1)
-    ph2_hash = dumber25519.cn_fast_hash(ph2)
-    ph3_hash = dumber25519.cn_fast_hash(ph3)
+    ph1_hash = df25519.cn_fast_hash(ph1)
+    ph2_hash = df25519.cn_fast_hash(ph2)
+    ph3_hash = df25519.cn_fast_hash(ph3)
 
-    return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
+    return df25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 
 
 def get_tx_hash_bp1(resp_json, resp_hex):
@@ -408,8 +409,8 @@ def get_tx_hash_bp1(resp_json, resp_hex):
     ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0] + outPk
     ph3 = bp_A + bp_S + bp_T1 + bp_T2 + bp_taux + bp_mu + L + R + bp_a + bp_b + bp_t
 
-    ph1_hash = dumber25519.cn_fast_hash(ph1)
-    ph2_hash = dumber25519.cn_fast_hash(ph2)
-    ph3_hash = dumber25519.cn_fast_hash(ph3)
+    ph1_hash = df25519.cn_fast_hash(ph1)
+    ph2_hash = df25519.cn_fast_hash(ph2)
+    ph3_hash = df25519.cn_fast_hash(ph3)
 
-    return dumber25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
+    return df25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)

@@ -8,8 +8,8 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 import sys
 import com_db
 import misc_func
-from dumber25519 import Scalar, Point, PointVector
-import dumber25519
+from df25519 import Scalar, Point, PointVector
+import df25519
 import struct
 import numpy as np
 import multiprocessing
@@ -20,7 +20,7 @@ def get_tx_prefix_hash(resp_json, resp_hex):
     signatures = resp_json["signatures"]
     sig = signatures[0]
     tx_prefix_raw = resp_hex.split(sig)[0]
-    tx_prefix_hash = dumber25519.cn_fast_hash(tx_prefix_raw)
+    tx_prefix_hash = df25519.cn_fast_hash(tx_prefix_raw)
     return tx_prefix_hash.encode()
 
 
@@ -32,11 +32,11 @@ def get_signatures(resp_json, resp_hex, index):
     sc, sr = [], []
 
     for i in range(0, int(2 * n_ring_members), 2):
-        sc.append(dumber25519.Scalar(sig[int(i * 64) : int((i + 1) * 64)]))
-        sr.append(dumber25519.Scalar(sig[int((i + 1) * 64) : int((i + 2) * 64)]))
+        sc.append(df25519.Scalar(sig[int(i * 64) : int((i + 1) * 64)]))
+        sr.append(df25519.Scalar(sig[int((i + 1) * 64) : int((i + 2) * 64)]))
 
-    sigc = dumber25519.ScalarVector(sc)
-    sigr = dumber25519.ScalarVector(sr)
+    sigc = df25519.ScalarVector(sc)
+    sigr = df25519.ScalarVector(sr)
 
     return n_ring_members, sigr, sigc
 
@@ -51,7 +51,7 @@ def check_v1(resp_json, resp_hex, sig_ind, pubs, tx_prefix, details):
     key_image = get_key_image(resp_json, sig_ind)
 
     verified, str_inp = check_ring_signature(
-        tx_prefix, key_image, dumber25519.PointVector(pubs[sig_ind]), pubs_count, sigr, sigc
+        tx_prefix, key_image, df25519.PointVector(pubs[sig_ind]), pubs_count, sigr, sigc
     )
     # print(str_out)
     if verified == False:
@@ -155,7 +155,7 @@ def ring_sig_correct_original(txs, index, details):
 
         pubs, _ = misc_func.get_members_and_masks_in_rings(resp_json)
         verified, str_out = check_ring_signature(
-            tx_prefix, key_image, dumber25519.PointVector(pubs), pubs_count, sigr, sigc
+            tx_prefix, key_image, df25519.PointVector(pubs), pubs_count, sigr, sigc
         )
         # print(str_out)
         if verified == False:
@@ -188,36 +188,36 @@ def generate_ring_signature(prefix, image, pubs, pubs_count, sec, sec_index):
     sigr = [Scalar(0) for xx in range(pubs_count)]
     for ii in range(0, pubs_count):
         if ii == sec_index:
-            kk = dumber25519.random_scalar()
+            kk = df25519.random_scalar()
             print("prefix: ")
             print(prefix)
 
-            tmp3 = dumber25519.scalarmultBase(kk)  # L[i] for i = s
+            tmp3 = df25519.scalarmultBase(kk)  # L[i] for i = s
             # Random Public key
             aba[ii] = tmp3
             print("aba: ")
             print(tmp3)
-            # tmp4 = dumber25519.hash_to_point2(pubs) #R[i] for i = s
-            tmp4 = dumber25519.hash_to_point(str(pubs[ii]))
+            # tmp4 = df25519.hash_to_point2(pubs) #R[i] for i = s
+            tmp4 = df25519.hash_to_point(str(pubs[ii]))
             print("after hashtopoint: ")
             print(tmp4)
             abb[ii] = kk * tmp4
             print("abb: ")
             print(abb[ii])
         else:
-            k1 = dumber25519.random_scalar()
-            k2 = dumber25519.random_scalar()
+            k1 = df25519.random_scalar()
+            k2 = df25519.random_scalar()
 
-            tmp2 = dumber25519.ge_double_scalarmult_base_vartime(
+            tmp2 = df25519.ge_double_scalarmult_base_vartime(
                 k1, pubs[ii], k2
             )  # this is L[i] for i != s
             print("aba: ")
             print(tmp2)
             aba[ii] = tmp2
-            tmp3 = dumber25519.hash_to_point(str(pubs[ii]))
+            tmp3 = df25519.hash_to_point(str(pubs[ii]))
             print("tmp3: ")
             print(tmp3)
-            abb[ii] = dumber25519.ge_double_scalarmult_vartime(
+            abb[ii] = df25519.ge_double_scalarmult_vartime(
                 k2, tmp3, k1, Point(image)
             )  # R[i] for i != s
             print("abb: ")
@@ -225,7 +225,7 @@ def generate_ring_signature(prefix, image, pubs, pubs_count, sec, sec_index):
             sigc[ii] = k1  # the random c[i] for i != s
             sigr[ii] = k2  # the random r[i] for i != s
             # summing the c[i] to get the c[s] via page 9 whitepaper
-            summ = dumber25519.sc_add(summ, sigc[ii])
+            summ = df25519.sc_add(summ, sigc[ii])
 
     buf = struct.pack("64s", prefix)
     for ii in range(0, pubs_count):
@@ -235,11 +235,11 @@ def generate_ring_signature(prefix, image, pubs, pubs_count, sec, sec_index):
     # hh is Scalar
     print("buf: ")
     print(buf)
-    c = dumber25519.hash_to_scalar(buf.decode())
+    c = df25519.hash_to_scalar(buf.decode())
 
-    sigc[sec_index] = dumber25519.sc_sub(c, summ)  # c[s] = hash - sum c[i] mod l
+    sigc[sec_index] = df25519.sc_sub(c, summ)  # c[s] = hash - sum c[i] mod l
     # r[s] = q[s] - sec * c[index]
-    sigr[sec_index] = dumber25519.sc_mulsub(sigc[sec_index], sec, kk)
+    sigr[sec_index] = df25519.sc_mulsub(sigc[sec_index], sec, kk)
 
     print("sigc: ")
     print(sigc)
@@ -273,17 +273,17 @@ def check_ring_signature(prefix, key_image, pubs, pubs_count, sigr, sigc):
     for ii in range(0, pubs_count):
         str_out += "Calculating Li = ri * G + ci * P   for index = " + str(ii)
         str_out += "\n"
-        Li[ii] = sigr[ii] * dumber25519.G + sigc[ii] * pubs[ii]
+        Li[ii] = sigr[ii] * df25519.G + sigc[ii] * pubs[ii]
         str_out += "Li calculated for index = " + str(ii)
         str_out += "\n"
         str_out += str(Li[ii])
         str_out += "\n"
         # print('Li calculated for index = ' + str(ii))
         # print(Li[ii])
-        tmp1 = dumber25519.hash_to_point(str(pubs[ii]))
+        tmp1 = df25519.hash_to_point(str(pubs[ii]))
         str_out += "Calculating Ri = ri * H(P) + ci * I   for index = " + str(ii)
         str_out += "\n"
-        Ri[ii] = sigr[ii] * dumber25519.hash_to_point(str(pubs[ii])) + sigc[ii] * Point(
+        Ri[ii] = sigr[ii] * df25519.hash_to_point(str(pubs[ii])) + sigc[ii] * Point(
             key_image
         )
         str_out += "Ri calculated for index = " + str(ii)
@@ -302,7 +302,7 @@ def check_ring_signature(prefix, key_image, pubs, pubs_count, sigr, sigc):
 
     str_out += "Message (prefix+Li+Ri) before hash_to_scalar = " + str(buf)
     str_out += "\n"
-    h = dumber25519.hash_to_scalar(buf)
+    h = df25519.hash_to_scalar(buf)
     str_out += "Hash of prefix (h): " + str(h)
     str_out += "\n"
     res = summ - h
@@ -381,8 +381,8 @@ if __name__ == "__main__":
             Scalar("bd20e7ec116ec1ab3c3edd0dd003fbfe3e51f1edc66b6061ab6bd0489d86aa09"),
         ]
 
-        sigc = dumber25519.ScalarVector(sc)
-        sigr = dumber25519.ScalarVector(sr)
+        sigc = df25519.ScalarVector(sc)
+        sigr = df25519.ScalarVector(sr)
 
         result = check_ring_signature(prefix, image, pubs, pubs_count, sigr, sigc)
 

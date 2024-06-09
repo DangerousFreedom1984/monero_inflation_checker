@@ -920,8 +920,9 @@ b = 256  # bit length
 # Other constants
 d = -121665 * invert(121666, q)
 I = exponent(2, (q - 1) // 4, q)
+inv8 = Scalar(8).invert()
 
-# The main subgroup default generator
+# The main subgroup default generators
 Gy = 4 * invert(5, q)
 Gx = xfromy(Gy)
 G = Point(Gx % q, Gy % q)

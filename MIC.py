@@ -9,7 +9,7 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 from os.path import exists
 import verify_tx
 import scan_bc
-import settings
+import settings_df25519
 import sys
 
 def menu1():
@@ -25,9 +25,9 @@ def menu1():
     val = input("Enter your choice: ")
 
     if val == "1":
-        settings.node_choice(1)
+        settings_df25519.node_choice(1)
     else:
-        settings.node_choice(0)
+        settings_df25519.node_choice(0)
 
     print(" ")
     print("Ok. Done. What do you want to do now?")
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             ans = menu2()
 
     elif sys.argv[1] == "scan_fast":
-        settings.node_choice(1)
+        settings_df25519.node_choice(1)
         filename = "height.txt"
         if exists(filename):
             h = int(scan_bc.read_height(filename))
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         scan_bc.start_scanning(filename, h)
 
     elif sys.argv[1] == "scan_blocks":
-        settings.node_choice(1)
+        settings_df25519.node_choice(1)
         filename = "last_block_scanned.txt"
         if exists(filename):
             h = int(scan_bc.read_height(filename))

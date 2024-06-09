@@ -1,5 +1,5 @@
-import dumber25519
-from dumber25519 import (
+import df25519
+from df25519 import (
     Scalar,
     Point,
     PointVector,
@@ -19,8 +19,8 @@ from enum import Enum
 
 class grootle_proof:
     def __init__(self, m, n):
-        self.A = Scalar(0) * dumber25519.G
-        self.B = Scalar(0) * dumber25519.G
+        self.A = Scalar(0) * df25519.G
+        self.B = Scalar(0) * df25519.G
         self.f = misc_func.scalar_matrix(m, n - 1, 0)
         self.X = misc_func.point_matrix(m, 0, 0)
         self.zA = Scalar(0)
@@ -50,7 +50,7 @@ class composition_proof:
         self.r_t1 = Scalar(0)
         self.r_t2 = Scalar(0)
         self.r_ki = Scalar(0)
-        self.K_t1 = Scalar(0) * dumber25519.G
+        self.K_t1 = Scalar(0) * df25519.G
 
 
 class transcript_flag(Enum):

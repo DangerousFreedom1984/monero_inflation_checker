@@ -23,6 +23,7 @@ import varint_mic as varint
 import multiprocessing
 import settings_df25519
 import time
+import random
 
 
 def check_sig_Borromean(resp_json, sig_ind):
@@ -503,8 +504,6 @@ def check_bp1(proofs):
 
 def check_bp_plus(proofs):
 
-    ti = time.time()
-
     # curve points
     Z = df25519.Z
     G = df25519.G
@@ -525,9 +524,6 @@ def check_bp_plus(proofs):
 
     # Store auxiliary data
     aux = []
-
-    t1 = time.time()
-    print("Time until here 1: " + str(t1 - ti))
 
     # Process each proof and add it to the batch
     for proof in proofs:
@@ -613,8 +609,6 @@ def check_bp_plus(proofs):
         if e == Scalar(0):
             raise ArithmeticError("Bad verifier challenge!")
 
-        t2 = time.time()
-        print("Time until here 2: " + str(t2 - t1))
         ## Add V terms to multiexp
         for j in range(len(V)):
             scalars.append(weight * (-(e**2) * z ** (2 * (j + 1)) * y ** (M * N + 1)))
@@ -981,32 +975,32 @@ def prove_bp_plus(sv, gamma):
     G = df25519.G
     domain = str("bulletproof_plus")
     H = Scalar(8) * Point(cn_fast_hash(str(G)))
-    Hi_plus = PointVector(
-        [
-            hash_to_point(
-                cn_fast_hash(
-                    str(H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i)
-                )
-            )
-            for i in range(0, 2 * M * N, 2)
-        ]
-    )
-    Gi_plus = PointVector(
-        [
-            hash_to_point(
-                cn_fast_hash(
-                    str(H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i)
-                )
-            )
-            for i in range(1, 2 * M * N + 1, 2)
-        ]
-    )
+    # Hi_plus = PointVector(
+    #     [
+    #         hash_to_point(
+    #             cn_fast_hash(
+    #                 str(H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i)
+    #             )
+    #         )
+    #         for i in range(0, 2 * M * N, 2)
+    #     ]
+    # )
+    # Gi_plus = PointVector(
+    #     [
+    #         hash_to_point(
+    #             cn_fast_hash(
+    #                 str(H) + domain.encode("utf-8").hex() + varint.encode_as_varint(i)
+    #             )
+    #         )
+    #         for i in range(1, 2 * M * N + 1, 2)
+    #     ]
+    # )
     # set amount commitments
     V = PointVector([])
     aL = ScalarVector([])
     len_data = len(sv)
     for i in range(len_data):
-        V.append((H * sv[i] + G * gamma[i]) * inv8)
+        V.append((H * sv[i] + G * gamma[i]) * df25519.inv8)
         aL.extend(scalar_to_bits(sv[i], N))
 
     # set bit arrays
@@ -1028,7 +1022,7 @@ def prove_bp_plus(sv, gamma):
 
     alpha = random_scalar()
 
-    A = (Gi_plus * aL + Hi_plus * aR + G * alpha) * inv8
+    A = (Gi_plus * aL + Hi_plus * aR + G * alpha) * df25519.inv8
 
     y = mash(str(transcript), str(A))
 
@@ -1124,4 +1118,15 @@ if __name__ == "__main__":
     for i in range(1000):
         scalar*df25519.G
     print("Time to verify op : " + str((time.time()-t1_op)*1000) + str(" ms"))
+
+
+    gamma = ScalarVector([])
+    gamma.append(df25519.random_scalar())
     
+    sv = ScalarVector([])
+    sv.append(Scalar(random.randrange(2**64 - 1)))
+    
+    bpp = prove_bp_plus(sv,gamma)
+
+    import ipdb;ipd.set_trace()
+

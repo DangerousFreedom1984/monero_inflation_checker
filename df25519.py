@@ -1,5 +1,4 @@
 
-# import Keccak  # cn_fast_hash
 import nacl.bindings
 import nacl.utils
 import binascii
@@ -29,7 +28,7 @@ class Scalar:
             raise TypeError
 
     # Multiplicative inversion
-    def invert(self: Scalar) -> Scalar:
+    def invert(self):
         return Scalar(nacl.bindings.crypto_core_ed25519_scalar_invert(self.b))
 
     # Addition
@@ -67,8 +66,10 @@ class Scalar:
 
     # Truncated division (possibly by a positive integer)
     def __truediv__(self, y):
+        if isinstance(y, int) and y >= 0:
+            return Scalar(self.to_int() // y)
         if isinstance(y, Scalar):
-            return Scalar(self * invert(y))
+            return Scalar(self.to_int() // y.to_int())
         raise NotImplemented
 
     # Integer exponentiation
@@ -164,21 +165,20 @@ class Point:
             try:
                 return Point(nacl.bindings.crypto_scalarmult_ed25519_noclamp(y.b, self.b))
             except Exception as inst:
-                return "Error in multiplication"
-        return NotImplemented
-
-    def scalar_mult(s):
-        try:
-            return Point(nacl.bindings.crypto_scalarmult_ed25519_noclamp(s.b, self.b))
-        except Exception as inst:
-            return "Error in multiplication"
+                if (y == Scalar(0)):
+                    return Point(1)
+                else:
+                    return TypeError
         return NotImplemented
 
     def scalar_mult_base(self, s):
         try:
             return Point(nacl.bindings.crypto_scalarmult_ed25519_base_noclamp(s.b))
         except Exception as inst:
-            return "Error in multiplication"
+            if (s == Scalar(0)):
+                return Point(1)
+            else:
+                return TypeError
         return NotImplemented
 
     def __rmul__(self, y):
@@ -455,6 +455,15 @@ def multiexp_naive(scalars, points):
     if len(scalars) == 0:
         return Z
 
+    # p = PointVector([])
+    # s = ScalarVector([])
+
+    # for ss in scalars:
+    #     print("s.append(Scalar('" + str(ss) +"'))")
+
+    # for pp in points:
+    #     print("p.append(Point('" + str(pp) +"'))")
+
     result = Z
     for i in range(len(scalars)):
         result += scalars[i]*points[i]
@@ -636,15 +645,18 @@ def verify_subgroup(P):
 
 
 # Curve parameters
-# k = Keccak.Keccak()
 q = 2**255 - 19
 l = 2**252 + 27742317777372353535851937790883648493
 cofactor = 8
 b = 256  # bit length
 p = 2**255 - 19
+
+# Other constants
 d = -121665 * invert(121666, q)
 I = exponent(2, (q - 1) // 4, q)
+inv8 = Scalar(8).invert()
 
+# The main subgroup default generators
 G = Point('5866666666666666666666666666666666666666666666666666666666666666')
 H = Scalar(8) * Point(cn_fast_hash(str(G)))
 # Neutral group element

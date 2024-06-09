@@ -44,7 +44,7 @@ def start_scanning(filename, h):
 
         # if everything went fine so far, write scanned height to file
         time_verify = time.time() - initial_time
-        print("Block: " + str(h) + " Txs: " + str(nbr_txs) + " Duration:" + str(time_verify))
+        print("Block: " + str(h) + " Txs: " + str(nbr_txs) + " Duration(s): " + str(time_verify))
         write_height(filename, str(h))
         h += 1
 

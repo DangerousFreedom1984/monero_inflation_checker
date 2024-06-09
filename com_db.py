@@ -7,7 +7,7 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 
 import json
 import requests
-import settings
+import settings_df25519
 import df25519
 
 from typing import List, Tuple
@@ -21,7 +21,7 @@ from typing import List, Tuple
 
 
 def get_block(params_block):
-    url = settings.url_str + "json_rpc"
+    url = settings_df25519.url_str + "json_rpc"
     headers = {"Content-Type": "application/json"}
     rpc_input = {"method": "get_block", "params": params_block, "decode_as_json": True}
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
@@ -29,13 +29,22 @@ def get_block(params_block):
     # execute the rpc request
     response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
 
-    resp_json = json.loads(response.json()["result"]["json"])
+    try:
+        resp_json = json.loads(response.json()["result"]["json"])
+        return resp_json
+    
+    except:
+        print("Next height to verify: " + str(params_block))
+        raise
 
-    return resp_json
+        # if response.status_code == 200:
+        #     return 0
+
+
 
 
 def get_members_and_masks(amount_and_index_list: List[Tuple[int, int]]) -> Tuple[List[df25519.Point], List[df25519.Point]]:
-    url = settings.url_str + "get_outs"
+    url = settings_df25519.url_str + "get_outs"
     headers = {"Content-Type": "application/json"}
     rpc_input = {"outputs": [{"amount": amount_and_index[0], "index": amount_and_index[1]} for amount_and_index in amount_and_index_list]}
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
@@ -50,7 +59,7 @@ def get_members_and_masks(amount_and_index_list: List[Tuple[int, int]]) -> Tuple
 
 
 def get_tx(txs, index):
-    url = settings.url_str + "get_transactions"
+    url = settings_df25519.url_str + "get_transactions"
     headers = {"Content-Type": "application/json"}
     rpc_input = {"txs_hashes": txs, "decode_as_json": True}
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
