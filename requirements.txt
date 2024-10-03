@@ -1,4 +1,4 @@
 numpy==1.22.0
 pyblake2==1.1.2
 PyNaCl==1.5.0
-Requests==2.31.0
+Requests==2.32.2
