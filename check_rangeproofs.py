@@ -35,10 +35,10 @@ def check_commitments(resp_json):
     if "pseudoOuts" in resp_json["rct_signatures"]:
         Cin = Scalar(0) * df25519.G
         Cout = Scalar(0) * df25519.G
-        for i in range(len(resp_json["rct_signatures"]["pseudoOuts"])):
-            Cin += Point(resp_json["rct_signatures"]["pseudoOuts"][i])
-        for i in range(len(resp_json["rct_signatures"]["outPk"])):
-            Cout += Point(resp_json["rct_signatures"]["outPk"][i])
+        for pseudoOut in resp_json["rct_signatures"]["pseudoOuts"]:
+            Cin += Point(pseudoOut)
+        for outPk in resp_json["rct_signatures"]["outPk"]:
+            Cout += Point(outPk)
         Fee = Scalar(resp_json["rct_signatures"]["txnFee"]) * df25519.H
         res = Cin - Cout - Fee
         if res != df25519.Z:
@@ -49,16 +49,14 @@ def check_commitments(resp_json):
     else:
         # "Commitments must match in RCTTypeFull transactions. Otherwise the MLSAG ring signature would fail."
         return True
-
-    return False 
 #--------------------------------------------------------------------------------------------
 def check_commitments_bp1(resp_json):
     Cin = df25519.Z
     Cout = df25519.Z
-    for i in range(len(resp_json["rctsig_prunable"]["pseudoOuts"])):
-        Cin += Point(resp_json["rctsig_prunable"]["pseudoOuts"][i])
-    for i in range(len(resp_json["rct_signatures"]["outPk"])):
-        Cout += Point(resp_json["rct_signatures"]["outPk"][i])
+    for pseudoOut in resp_json["rctsig_prunable"]["pseudoOuts"]:
+        Cin += Point(pseudoOut)
+    for outPk in resp_json["rct_signatures"]["outPk"]:
+        Cout += Point(outPk)
     Fee = Scalar(resp_json["rct_signatures"]["txnFee"]) * df25519.H
 
     res = Cin - Cout - Fee
@@ -66,8 +64,6 @@ def check_commitments_bp1(resp_json):
         return False
     else:
         return True
-
-    return False 
 #--------------------------------------------------------------------------------------------
 ### Borromean 
 #--------------------------------------------------------------------------------------------
@@ -152,22 +148,14 @@ def get_vars_bp1(resp_json):
     L_aux = resp_json["rctsig_prunable"]["bp"][ind]["L"]
     R_aux = resp_json["rctsig_prunable"]["bp"][ind]["R"]
 
-    L = PointVector()
-    for i in range(len(L_aux)):
-        L.append(Point(L_aux[i]))
-
-    R = PointVector()
-    for i in range(len(R_aux)):
-        R.append(Point(R_aux[i]))
+    L = PointVector([Point(one_L_aux) for one_L_aux in L_aux])
+    R = PointVector([Point(one_R_aux) for one_R_aux in R_aux])
 
     a = Scalar(resp_json["rctsig_prunable"]["bp"][ind]["a"])
     b = Scalar(resp_json["rctsig_prunable"]["bp"][ind]["b"])
     t = Scalar(resp_json["rctsig_prunable"]["bp"][ind]["t"])
 
-    outPk_aux = resp_json["rct_signatures"]["outPk"]
-    V = PointVector()
-    for i in range(len(outPk_aux)):
-        V.append(df25519.inv8 * Point(outPk_aux[i]))
+    V = PointVector([df25519.inv8 * Point(one_outPk_aux) for one_outPk_aux in resp_json["rct_signatures"]["outPk"]])
 
     return [V, A, S, T1, T2, taux, mu, L, R, a, b, t]
 #--------------------------------------------------------------------------------------------
@@ -189,18 +177,10 @@ def get_vars_bp_plus(resp_json):
     L_aux = resp_json["rctsig_prunable"]["bpp"][ind]["L"]
     R_aux = resp_json["rctsig_prunable"]["bpp"][ind]["R"]
 
-    L = PointVector()
-    for i in range(len(L_aux)):
-        L.append(Point(L_aux[i]))
+    L = PointVector([Point(one_L_aux) for one_L_aux in L_aux])
+    R = PointVector([Point(one_R_aux) for one_R_aux in R_aux])
 
-    R = PointVector()
-    for i in range(len(R_aux)):
-        R.append(Point(R_aux[i]))
-
-    outPk_aux = resp_json["rct_signatures"]["outPk"]
-    V = PointVector()
-    for i in range(len(outPk_aux)):
-        V.append(df25519.inv8 * Point(outPk_aux[i]))
+    V = PointVector([df25519.inv8 * Point(one_outPk_aux) for one_outPk_aux in resp_json["rct_signatures"]["outPk"]])
 
     return [V, A, A1, B, r1, s1, d1, L, R]
 #--------------------------------------------------------------------------------------------
@@ -240,16 +220,10 @@ def exp_scalar(s, l):
     return ScalarVector([s**i for i in range(l)])
 #--------------------------------------------------------------------------------------------
 def vector_sub(vec, sca):
-    vec_new = []
-    for i in range(len(vec)):
-        vec_new.append(vec[i] - sca)
-    return vec_new
+    return [one_vec - sca for one_vec in vec]
 #--------------------------------------------------------------------------------------------
 def vector_add(vec, sca):
-    vec_new = []
-    for i in range(len(vec)):
-        vec_new.append(vec[i] + sca)
-    return vec_new
+    return [one_vec + sca for one_vec in vec]
 #--------------------------------------------------------------------------------------------
 def vec_add_vec(vec, vec2):
     if len(vec) != len(vec2):
@@ -316,9 +290,7 @@ def prove_bp(sv,gammas):
         V.append((H*sv[i] + G*gammas[i])*df25519.inv8)
         aL.extend(scalar_to_bits(sv[i],N))
 
-    strV = ''
-    for i in range(len(V)):
-        strV = strV+str(V[i])
+    strV = "".join([str(one_V) for one_V in V])
     hash_cache = str(hash_to_scalar(strV))
 
     # set bit arrays
@@ -432,8 +404,6 @@ def check_bp(proofs):
 
     # run through each proof
     for proof in proofs:
-        hash_cache = ''
-
         V,A,S,T1,T2,taux,mu,L,R,a,b,t = proof
 
         # get size information
@@ -447,14 +417,11 @@ def check_bp(proofs):
             raise ArithmeticError
 
         # reconstruct all challenges
-        strV = ''
-        for i in range(len(V)):
-            strV = strV + str(V[i])
+        strV = "".join([str(one_V) for one_V in V])
 
         hash_cache = str(hash_to_scalar(strV))
         
         y = mash(str(hash_cache), str(A), str(S))
-        hash_cache = copy.copy(y)
 
         if y == Scalar(0):
             raise ArithmeticError
@@ -625,8 +592,8 @@ def inner_product_bp_plus(data):
         # Random masks
         r = random_scalar()
         s = random_scalar()
-        d = random_scalar() if data.seed is None else hash_to_scalar(data.seed, "d")
-        eta = random_scalar() if data.seed is None else hash_to_scalar(data.seed, "eta")
+        d = random_scalar() if data.seed is None else hash_to_scalar(data.seed)
+        eta = random_scalar() if data.seed is None else hash_to_scalar(data.seed)
 
         data.A = (
             data.Gi[0] * r

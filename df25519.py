@@ -1,8 +1,8 @@
 import nacl.bindings
 import nacl.utils
 import binascii
+import secrets
 import sha3
-import time
 
 class Scalar:
     def __init__(self, x):
@@ -192,7 +192,6 @@ class Point:
                 return Point(1)
             else:
                 return TypeError
-        return NotImplemented
 
     def __rmul__(self, y):
         # Scalar-Point
@@ -459,7 +458,7 @@ class ScalarVector:
 
 
 # Perform a naive multiscalar multiplication 
-def multiexp_naive(scalars, points):
+def multiexp_naive(scalars: ScalarVector, points: PointVector) -> Point:
     if not isinstance(scalars, ScalarVector) or not isinstance(points, PointVector):
         raise TypeError
 
@@ -542,25 +541,23 @@ def multiexp(scalars, points):
                 result += pail
     return result
 
-def random_scalar():
+def random_scalar() -> Scalar:
     return Scalar(nacl.bindings.crypto_core_ed25519_scalar_reduce(nacl.utils.random(64)))
 
-def random_point():
+def random_point() -> Point:
     return hash_to_point("{:x}".format(secrets.randbits(b)))
 
-def cn_fast_hash(s):
+def cn_fast_hash(s: str) -> str:
     m = sha3.keccak_256()
     m.update(binascii.a2b_hex(s))
     return m.hexdigest()
 
-def hash_to_scalar(data):
+def hash_to_scalar(data: str) -> Scalar:
     return Scalar(hex_to_int(cn_fast_hash(data)) % l)
 
-def hash_to_point(hex_value):
+def hash_to_point(hex_value: str) -> Point:
     u = hex_to_int(cn_fast_hash(hex_value)) % q
     A = 486662
-    ma = -1 * A % q
-    ma2 = -1 * A * A % q
     sqrtm1 = sqroot(-1)
 
     w = (2 * u * u + 1) % q
@@ -578,7 +575,7 @@ def hash_to_point(hex_value):
             rx = rx * -1 * sqroot(-2 * A * (A + 2)) % q
             negative = False
     else:
-        # y was 0..
+        # y was 0
         rx = (rx * -1 * sqroot(2 * A * (A + 2))) % q
     if not negative:
         rx = (rx * u) % q
@@ -606,7 +603,7 @@ def hash_to_point(hex_value):
 
 
 # Necessery functions for hash_to_point
-def sqroot(xx):
+def sqroot(xx: int) -> int:
     x = expmod(xx, ((q + 3) // 8), q)
     if (x * x - xx) % q != 0:
         x = (x * I) % q
@@ -614,33 +611,33 @@ def sqroot(xx):
         print("no square root!")
     return x
 
-def hex_to_int(h):
+def hex_to_int(h: str) -> int:
     # Input: String with hex value
     # Output: Int value corresponding
     # Conversion uses little indian. The function int(h,16) wont work as it uses big indian.
     return int.from_bytes(bytes.fromhex(h), "little")
 
-def int_to_hex(h):
+def int_to_hex(h: int) -> str:
     return h.to_bytes(32,"little").hex()
 
 # Internal helper methods
-def exponent(b, e, m):
+def exponent(b: int, e: int, m: int) -> int:
     return pow(b, e, m)
 
-def modp_inv(x):
+def modp_inv(x: int) -> int:
     return pow(x, p - 2, p)
 
-def expmod(b, e, m):
+def expmod(b: int, e: int, m: int) -> int:
     return pow(b, e, m)
 
-def inv(x):
+def inv(x: int) -> int:
     return pow(x, q - 2, q)
 
-def invert(x, p):
+def invert(x: int, p: int) -> int:
     # Assumes `p` is prime
     return exponent(x, p - 2, p)
 
-def point_compress(P):
+def point_compress(P) -> Point:
     zinv = modp_inv(P[2])
     x = P[0] * zinv % p
     y = P[1] * zinv % p

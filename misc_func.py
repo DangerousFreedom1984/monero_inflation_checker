@@ -90,8 +90,7 @@ def get_pseudo_outs(resp_json, pseudo_index=0):
 
 def get_pseudo_outs_bp1(resp_json, pseudo_index=0):
     if "pseudoOuts" in resp_json["rctsig_prunable"]:
-        pseudos = Point(resp_json["rctsig_prunable"]["pseudoOuts"][pseudo_index])
-        return pseudos
+        return Point(resp_json["rctsig_prunable"]["pseudoOuts"][pseudo_index])
 
 
 def verify_ki(ki):

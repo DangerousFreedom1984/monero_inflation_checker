@@ -245,7 +245,6 @@ def generate_MLSAG(m, PK, sk, index):
 
 def check_MLSAG(m, PK, I, c, ss):
     rows = len(PK)
-    cols = len(PK[0])
     c_old = copy.copy(c)
 
     i = 0
@@ -274,9 +273,7 @@ def check_MLSAG(m, PK, I, c, ss):
 
 
 def get_tx_hash_mlsag(resp_json, resp_hex):
-    extra_hex = ""
-    for i in range(len(resp_json["extra"])):
-        extra_hex += format(resp_json["extra"][i], "02x")
+    extra_hex = "".join([format(value, "02x") for value in resp_json["extra"]])
 
     ss = resp_json["rctsig_prunable"]["MGs"][0]["ss"]
     asig = resp_json["rctsig_prunable"]["rangeSigs"][0]["asig"]
@@ -293,23 +290,18 @@ def get_tx_hash_mlsag(resp_json, resp_hex):
 
 
 def get_tx_hash_bp1(resp_json, resp_hex):
-    extra_hex = ""
-    for i in range(len(resp_json["extra"])):
-        extra_hex += format(resp_json["extra"][i], "02x")
+    extra_hex = "".join([format(value, "02x") for value in resp_json["extra"]])
 
     outPk = resp_json["rct_signatures"]["outPk"][-1]
 
-    L, R = "", ""
     bp_A = resp_json["rctsig_prunable"]["bp"][0]["A"]
     bp_S = resp_json["rctsig_prunable"]["bp"][0]["S"]
     bp_T1 = resp_json["rctsig_prunable"]["bp"][0]["T1"]
     bp_T2 = resp_json["rctsig_prunable"]["bp"][0]["T2"]
     bp_taux = resp_json["rctsig_prunable"]["bp"][0]["taux"]
     bp_mu = resp_json["rctsig_prunable"]["bp"][0]["mu"]
-    for i in range(len(resp_json["rctsig_prunable"]["bp"][0]["L"])):
-        L += str(resp_json["rctsig_prunable"]["bp"][0]["L"][i])
-    for i in range(len(resp_json["rctsig_prunable"]["bp"][0]["R"])):
-        R += str(resp_json["rctsig_prunable"]["bp"][0]["R"][i])
+    L = "".join([str(one_L) for one_L in resp_json["rctsig_prunable"]["bp"][0]["L"]])
+    R = "".join([str(one_R) for one_R in resp_json["rctsig_prunable"]["bp"][0]["R"]])
     bp_a = resp_json["rctsig_prunable"]["bp"][0]["a"]
     bp_b = resp_json["rctsig_prunable"]["bp"][0]["b"]
     bp_t = resp_json["rctsig_prunable"]["bp"][0]["t"]

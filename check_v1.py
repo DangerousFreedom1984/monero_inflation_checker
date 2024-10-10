@@ -176,21 +176,17 @@ def generate_ring_signature(prefix, image, pubs, pubs_count, sec, sec_index):
     return image, sigc, sigr
 #--------------------------------------------------------------------------------------------
 def check_ring_signature(prefix, key_image, pubs, pubs_count, sigr, sigc):
-    Li = [Scalar(0) for xx in range(pubs_count)]
-    Ri = [Scalar(0) for xx in range(pubs_count)]
+    Li = [Scalar(0) for _ in range(pubs_count)]
+    Ri = [Scalar(0) for _ in range(pubs_count)]
 
     summ = Scalar(0)
-    for ii in range(0, pubs_count):
+    for ii in range(pubs_count):
         Li[ii] = sigr[ii] * df25519.G + sigc[ii] * pubs[ii]
-        tmp1 = df25519.hash_to_point(str(pubs[ii]))
-        Ri[ii] = sigr[ii] * df25519.hash_to_point(str(pubs[ii])) + sigc[ii] * Point(
-            key_image
-        )
-
+        Ri[ii] = sigr[ii] * df25519.hash_to_point(str(pubs[ii])) + sigc[ii] * Point(key_image)
         summ += sigc[ii]
 
     buf = prefix.decode()
-    for ii in range(0, pubs_count):
+    for ii in range(pubs_count):
         buf += str(Li[ii])
         buf += str(Ri[ii])
 

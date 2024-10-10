@@ -108,7 +108,7 @@ def ring_sig_correct_bp_plus(
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
             str_ki = "Verification of key_image: " + str(Iv) + " failed."
-            settings_df25519.logger_inflation.info(str_res)
+            settings_df25519.logger_inflation.info(str_inp)
 
     # Check ring-signatures 
     for sig_ind in range(inputs):
@@ -205,13 +205,8 @@ def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
     str_aux = str0[len(str_round_aux) :]
     str_round = str_round_aux + str_aux
 
-    strP = ""
-    for i in range(len(P)):
-        strP += str(P[i])
-
-    strC_nonzero = ""
-    for i in range(len(C_nonzero)):
-        strC_nonzero += str(C_nonzero[i])
+    strP = "".join([str(one_P) for one_P in P])
+    strC_nonzero = "".join([str(one_C) for one_C in C_nonzero])
 
     # Now generate the signature
     mu_P = hash_to_scalar(
@@ -294,13 +289,8 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
 
     D = copy.copy(D_aux)
 
-    strP = ""
-    for i in range(len(P)):
-        strP += str(P[i])
-
-    strC_nonzero = ""
-    for i in range(len(C_nonzero)):
-        strC_nonzero += str(C_nonzero[i])
+    strP = "".join([str(one_P) for one_P in P])
+    strC_nonzero = "".join([str(one_C) for one_C in C_nonzero])
 
     mu_P = hash_to_scalar(
         str_agg0 + strP + strC_nonzero + str(I) + str(D) + str(C_offset)
@@ -327,31 +317,24 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
         c = hash_to_scalar(str_hash)
         i = i + 1
 
-    c_final = c - c1
-
     if (c - c1) == Scalar(0):
         return True
 
     return False
 #--------------------------------------------------------------------------------------------
 def get_tx_hash_clsag(resp_json, resp_hex):
-    extra_hex = ""
-    for i in range(len(resp_json["extra"])):
-        extra_hex += format(resp_json["extra"][i], "02x")
+    extra_hex = "".join([format(value, "02x") for value in resp_json["extra"]])
 
     outPk = resp_json["rct_signatures"]["outPk"][-1]
 
-    L, R = "", ""
     bp_A = resp_json["rctsig_prunable"]["bp"][0]["A"]
     bp_S = resp_json["rctsig_prunable"]["bp"][0]["S"]
     bp_T1 = resp_json["rctsig_prunable"]["bp"][0]["T1"]
     bp_T2 = resp_json["rctsig_prunable"]["bp"][0]["T2"]
     bp_taux = resp_json["rctsig_prunable"]["bp"][0]["taux"]
     bp_mu = resp_json["rctsig_prunable"]["bp"][0]["mu"]
-    for i in range(len(resp_json["rctsig_prunable"]["bp"][0]["L"])):
-        L += str(resp_json["rctsig_prunable"]["bp"][0]["L"][i])
-    for i in range(len(resp_json["rctsig_prunable"]["bp"][0]["R"])):
-        R += str(resp_json["rctsig_prunable"]["bp"][0]["R"][i])
+    L = "".join([str(one_L) for one_L in resp_json["rctsig_prunable"]["bp"][0]["L"]])
+    R = "".join([str(one_R) for one_R in resp_json["rctsig_prunable"]["bp"][0]["R"]])
     bp_a = resp_json["rctsig_prunable"]["bp"][0]["a"]
     bp_b = resp_json["rctsig_prunable"]["bp"][0]["b"]
     bp_t = resp_json["rctsig_prunable"]["bp"][0]["t"]
@@ -367,23 +350,18 @@ def get_tx_hash_clsag(resp_json, resp_hex):
     return df25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
 #--------------------------------------------------------------------------------------------
 def get_tx_hash_clsag_bp_plus(resp_json, resp_hex):
-    extra_hex = ""
-    for i in range(len(resp_json["extra"])):
-        extra_hex += format(resp_json["extra"][i], "02x")
+    extra_hex = "".join([format(value, "02x") for value in resp_json["extra"]])
 
     outPk = resp_json["rct_signatures"]["outPk"][-1]
 
-    L, R = "", ""
     bp_A = resp_json["rctsig_prunable"]["bpp"][0]["A"]
     bp_A1 = resp_json["rctsig_prunable"]["bpp"][0]["A1"]
     bp_B = resp_json["rctsig_prunable"]["bpp"][0]["B"]
     bp_r1 = resp_json["rctsig_prunable"]["bpp"][0]["r1"]
     bp_s1 = resp_json["rctsig_prunable"]["bpp"][0]["s1"]
     bp_d1 = resp_json["rctsig_prunable"]["bpp"][0]["d1"]
-    for i in range(len(resp_json["rctsig_prunable"]["bpp"][0]["L"])):
-        L += str(resp_json["rctsig_prunable"]["bpp"][0]["L"][i])
-    for i in range(len(resp_json["rctsig_prunable"]["bpp"][0]["R"])):
-        R += str(resp_json["rctsig_prunable"]["bpp"][0]["R"][i])
+    L = "".join([str(one_L) for one_L in resp_json["rctsig_prunable"]["bpp"][0]["L"]])
+    R = "".join([str(one_R) for one_R in resp_json["rctsig_prunable"]["bpp"][0]["R"]])
 
     ph1 = resp_hex.split(extra_hex)[0] + extra_hex
     ph2 = resp_hex.split(extra_hex)[1].split(outPk)[0] + outPk
