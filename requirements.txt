@@ -1,5 +1,4 @@
 numpy
-pysha3
-pyblake2
 PyNaCl
 Requests
+pycryptodomex

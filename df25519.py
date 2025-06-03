@@ -2,7 +2,7 @@ import nacl.bindings
 import nacl.utils
 import binascii
 import secrets
-import sha3
+from Crypto.Hash import keccak
 
 class Scalar:
     def __init__(self, x):
@@ -548,9 +548,9 @@ def random_point() -> Point:
     return hash_to_point("{:x}".format(secrets.randbits(b)))
 
 def cn_fast_hash(s: str) -> str:
-    m = sha3.keccak_256()
-    m.update(binascii.a2b_hex(s))
-    return m.hexdigest()
+    keccak_hash = keccak.new(digest_bits=256)
+    keccak_hash.update(binascii.a2b_hex(s))
+    return keccak_hash.hexdigest()
 
 def hash_to_scalar(data: str) -> Scalar:
     return Scalar(hex_to_int(cn_fast_hash(data)) % l)
