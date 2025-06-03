@@ -826,6 +826,12 @@ class Test_multiexp(unittest.TestCase):
         print("Time to perform multiexp naive: " + str((t2-t1)*1000) + " ms")
         self.assertTrue(r)
 
+class Test_keccak_mult(unittest.TestCase):
+    def test_keccak_mult(self):
+        # Perform Keccak256
+        keccak = df25519.cn_fast_hash('DEADBEEF')
+        print(keccak)
+        self.assertEqual(keccak,str('d4fd4e189132273036449fc9e11198c739161b4c0116a9a2dccdfa1c492006f1'))
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
