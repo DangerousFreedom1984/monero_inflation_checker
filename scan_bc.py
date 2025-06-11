@@ -161,3 +161,12 @@ def problematic_txs():
             raise Exception("Tx: " + str(txs[i_tx]) + " failed verification")
 
     print("Total execution time: " + str(time.time()-t1))
+
+
+def get_coinbase_sum(initial_block_height, count):
+    params = {"height": initial_block_height, "count": count}
+    resp_sum = com_db.get_coinbase_sum(params)
+    print(resp_sum)
+    return resp_sum
+
+
