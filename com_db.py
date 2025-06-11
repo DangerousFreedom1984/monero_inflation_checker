@@ -75,3 +75,22 @@ def get_tx(txs, index):
         raise
 
     return resp_json, resp_hex
+
+def get_coinbase_sum(params):
+    url = settings_df25519.url_str + "json_rpc"
+    headers = {"Content-Type": "application/json"}
+    rpc_input = {"method": "get_coinbase_tx_sum", "params": params, "decode_as_json": True}
+    rpc_input.update({"jsonrpc": "2.0", "id": "0"})
+
+    # execute the rpc request
+    response = requests.post(url, data=json.dumps(rpc_input), headers=headers)
+
+    try:
+        resp_json = response.json()["result"]["emission_amount"]
+        return resp_json
+    
+    except:
+        print("Failed acquiring coinbase sum")
+        print(response.json())
+        raise
+
