@@ -4,11 +4,12 @@ import binascii
 import secrets
 from Crypto.Hash import keccak
 
+
 class Scalar:
     def __init__(self, x):
         # Generated from an integer value
         if isinstance(x, int):
-            self.b = x.to_bytes(32,"little") 
+            self.b = x.to_bytes(32, "little")
         # Generated from a hex representation or 'l'
         elif isinstance(x, str):
             try:
@@ -16,12 +17,12 @@ class Scalar:
                     self.b = l  # technically not in scalar field; used for main subgroup membership
                 else:
                     self.b = binascii.a2b_hex(x.encode("utf-8"))
-            except:
+            except Exception:
                 raise TypeError
         elif isinstance(x, bytes):
             try:
                 self.b = x
-            except:
+            except Exception:
                 raise TypeError
         else:
             raise TypeError
@@ -33,17 +34,17 @@ class Scalar:
     # Addition
     def __add__(self, y):
         if isinstance(y, Scalar):
-            return Scalar(nacl.bindings.crypto_core_ed25519_scalar_add(self.b,y.b))
-        if isinstance(y,bytes):
-            return Scalar(nacl.bindings.crypto_core_ed25519_scalar_add(self.b,y))
+            return Scalar(nacl.bindings.crypto_core_ed25519_scalar_add(self.b, y.b))
+        if isinstance(y, bytes):
+            return Scalar(nacl.bindings.crypto_core_ed25519_scalar_add(self.b, y))
         return NotImplemented
 
     # Subtraction
     def __sub__(self, y):
         if isinstance(y, Scalar):
-            return Scalar(nacl.bindings.crypto_core_ed25519_scalar_sub(self.b,y.b))
-        if isinstance(y,bytes):
-            return Scalar(nacl.bindings.crypto_core_ed25519_scalar_sub(self.b,y))
+            return Scalar(nacl.bindings.crypto_core_ed25519_scalar_sub(self.b, y.b))
+        if isinstance(y, bytes):
+            return Scalar(nacl.bindings.crypto_core_ed25519_scalar_sub(self.b, y))
         return NotImplemented
 
     # Multiplication (possibly by an integer)
@@ -62,19 +63,18 @@ class Scalar:
     def __neg__(self):
         return Scalar(nacl.bindings.crypto_core_ed25519_scalar_negate(self.b))
 
-
     # Truncated division (possibly by a positive integer)
     def __truediv__(self, y):
         if isinstance(y, int) and y >= 0:
             return Scalar(self.to_int() // y)
         if isinstance(y, Scalar):
             return Scalar(self.to_int() // y.to_int())
-        raise NotImplemented
+        raise NotImplementedError
 
     # Integer exponentiation
     def __pow__(self, y):
         if isinstance(y, int) and y >= 0:
-            return Scalar(pow(self.to_int(),y,l))
+            return Scalar(pow(self.to_int(), y, l))
         return NotImplemented
 
     # Equality
@@ -107,28 +107,29 @@ class Scalar:
 
     # Return representing integer of stored bytes
     def to_int(self):
-        return int.from_bytes(self.b,"little")
+        return int.from_bytes(self.b, "little")
 
     # Verify if Scalar is canonical (reduced)
     def is_canonical(self):
-       return self.to_int() < l 
+        return self.to_int() < l
+
 
 # An element of the curve group
 class Point:
     def __init__(self, x):
         # Generated from integer values
         if isinstance(x, int):
-            self.b = x.to_bytes(32,"little") 
+            self.b = x.to_bytes(32, "little")
         # Generated from a hex representation
-        elif isinstance(x, str): 
+        elif isinstance(x, str):
             try:
                 self.b = binascii.a2b_hex(x.encode("utf-8"))
-            except:
+            except Exception:
                 raise TypeError
         elif isinstance(x, bytes):
             try:
                 self.b = x
-            except:
+            except Exception:
                 raise TypeError
         else:
             raise TypeError
@@ -136,29 +137,29 @@ class Point:
     # Equality
     def __eq__(self, Q):
         if isinstance(Q, Point):
-            return self.b == Q.b 
+            return self.b == Q.b
         raise TypeError
 
     # Inequality
     def __ne__(self, Q):
         if isinstance(Q, Point):
-            return self.b != Q.b 
+            return self.b != Q.b
         raise TypeError
 
     # Addition
     def __add__(self, Q):
         if isinstance(Q, Point):
-            return Point(nacl.bindings.crypto_core_ed25519_add(self.b,Q.b))
+            return Point(nacl.bindings.crypto_core_ed25519_add(self.b, Q.b))
         elif isinstance(Q, bytes):
-            return Point(nacl.bindings.crypto_core_ed25519_add(self.b,Q))
+            return Point(nacl.bindings.crypto_core_ed25519_add(self.b, Q))
         return NotImplemented
 
     # Subtraction
     def __sub__(self, Q):
         if isinstance(Q, Point):
-            return Point(nacl.bindings.crypto_core_ed25519_sub(self.b,Q.b))
+            return Point(nacl.bindings.crypto_core_ed25519_sub(self.b, Q.b))
         elif isinstance(Q, bytes):
-            return Point(nacl.bindings.crypto_core_ed25519_sub(self.b,Q))
+            return Point(nacl.bindings.crypto_core_ed25519_sub(self.b, Q))
         return NotImplemented
 
     # Multiplication
@@ -167,19 +168,19 @@ class Point:
             try:
                 return Point(nacl.bindings.crypto_scalarmult_ed25519_noclamp(y.b, self.b))
             except Exception as inst:
-                if (y == Scalar(0)):
+                if y == Scalar(0):
                     return Point(1)
-                if (y == Scalar(1)):
+                if y == Scalar(1):
                     return self
                 if not (self.on_curve()):
-                # print("Doing operation with a Point not on curve.")
-                # Perform naive and slow multiplication:
-                    Q = self.__mul__(y/Scalar(2))
+                    # print("Doing operation with a Point not on curve.")
+                    # Perform naive and slow multiplication:
+                    Q = self.__mul__(y / Scalar(2))
                     Q = Q.__add__(Q)
                     if y.to_int() & 1:
                         Q = self.__add__(Q)
                     return Q
-                return NotImplemented 
+                return NotImplemented
             # return NotImplemented
         else:
             return TypeError
@@ -188,7 +189,7 @@ class Point:
         try:
             return Point(nacl.bindings.crypto_scalarmult_ed25519_base_noclamp(s.b))
         except Exception as inst:
-            if (s == Scalar(0)):
+            if s == Scalar(0):
                 return Point(1)
             else:
                 return TypeError
@@ -206,6 +207,7 @@ class Point:
     # Curve membership (not main subgroup!)
     def on_curve(self):
         return nacl.bindings.crypto_core_ed25519_is_valid_point(self.b)
+
 
 # A vector of Points with superpowers
 class PointVector:
@@ -232,17 +234,13 @@ class PointVector:
     # Addition
     def __add__(self, W):
         if isinstance(W, PointVector) and len(self.points) == len(W.points):
-            return PointVector(
-                [self.points[i] + W.points[i] for i in range(len(self.points))]
-            )
+            return PointVector([self.points[i] + W.points[i] for i in range(len(self.points))])
         return NotImplemented
 
     # Subtraction
     def __sub__(self, W):
         if isinstance(W, PointVector) and len(self.points) == len(W.points):
-            return PointVector(
-                [self.points[i] - W.points[i] for i in range(len(self.points))]
-            )
+            return PointVector([self.points[i] - W.points[i] for i in range(len(self.points))])
         return NotImplemented
 
     # multiplying a PointVector by a scalar or ScalarVector or Hadamard
@@ -254,9 +252,7 @@ class PointVector:
         if isinstance(s, PointVector):
             if not len(self.points) == len(s.points):
                 raise IndexError
-            return PointVector(
-                [self.points[i] + s.points[i] for i in range(len(self.points))]
-            )
+            return PointVector([self.points[i] + s.points[i] for i in range(len(self.points))])
         raise TypeError
 
     def __rmul__(self, s):
@@ -340,17 +336,13 @@ class ScalarVector:
     # Addition
     def __add__(self, s):
         if isinstance(s, ScalarVector) and len(self.scalars) == len(s.scalars):
-            return ScalarVector(
-                [self.scalars[i] + s.scalars[i] for i in range(len(self.scalars))]
-            )
+            return ScalarVector([self.scalars[i] + s.scalars[i] for i in range(len(self.scalars))])
         return NotImplemented
 
     # Subtraction
     def __sub__(self, s):
         if isinstance(s, ScalarVector) and len(self.scalars) == len(s.scalars):
-            return ScalarVector(
-                [self.scalars[i] - s.scalars[i] for i in range(len(self.scalars))]
-            )
+            return ScalarVector([self.scalars[i] - s.scalars[i] for i in range(len(self.scalars))])
         return NotImplemented
 
     # Multiplication
@@ -360,9 +352,7 @@ class ScalarVector:
             return ScalarVector([self.scalars[i] * s for i in range(len(self.scalars))])
         # ScalarVector-ScalarVector: Hadamard product
         if isinstance(s, ScalarVector) and len(self.scalars) == len(s.scalars):
-            return ScalarVector(
-                [self.scalars[i] * s.scalars[i] for i in range(len(self.scalars))]
-            )
+            return ScalarVector([self.scalars[i] * s.scalars[i] for i in range(len(self.scalars))])
         return NotImplemented
 
     def __rmul__(self, s):
@@ -457,7 +447,7 @@ class ScalarVector:
         return ScalarVector([-s for s in self.scalars])
 
 
-# Perform a naive multiscalar multiplication 
+# Perform a naive multiscalar multiplication
 def multiexp_naive(scalars: ScalarVector, points: PointVector) -> Point:
     if not isinstance(scalars, ScalarVector) or not isinstance(points, PointVector):
         raise TypeError
@@ -467,20 +457,12 @@ def multiexp_naive(scalars: ScalarVector, points: PointVector) -> Point:
     if len(scalars) == 0:
         return Z
 
-    # p = PointVector([])
-    # s = ScalarVector([])
-
-    # for ss in scalars:
-    #     print("s.append(Scalar('" + str(ss) +"'))")
-
-    # for pp in points:
-    #     print("p.append(Point('" + str(pp) +"'))")
-
     result = Z
     for i in range(len(scalars)):
-        result += scalars[i]*points[i]
-    
+        result += scalars[i] * points[i]
+
     return result
+
 
 # Perform a multiscalar multiplication using a simplified Pippenger algorithm
 def multiexp(scalars, points):
@@ -496,12 +478,12 @@ def multiexp(scalars, points):
     buckets = None
     result = Z  # zero point
 
-    c = 5 # window parameter; NOTE: the optimal value actually depends on len(points) empirically
+    c = 5  # window parameter; NOTE: the optimal value actually depends on len(points) empirically
 
     # really we want to use the max bitlength to compute groups
     maxscalar = 0
     for s in scalars:
-        if s.to_int()>maxscalar:
+        if s.to_int() > maxscalar:
             maxscalar = s.to_int()
 
     groups = 0
@@ -515,7 +497,7 @@ def multiexp(scalars, points):
             for i in range(c):
                 result += result
 
-        buckets = [Z] * (1<<c)  # clear all buckets
+        buckets = [Z] * (1 << c)  # clear all buckets
 
         # partition scalars into buckets
         for i in range(len(scalars)):
@@ -541,19 +523,24 @@ def multiexp(scalars, points):
                 result += pail
     return result
 
+
 def random_scalar() -> Scalar:
     return Scalar(nacl.bindings.crypto_core_ed25519_scalar_reduce(nacl.utils.random(64)))
 
+
 def random_point() -> Point:
     return hash_to_point("{:x}".format(secrets.randbits(b)))
+
 
 def cn_fast_hash(s: str) -> str:
     keccak_hash = keccak.new(digest_bits=256)
     keccak_hash.update(binascii.a2b_hex(s))
     return keccak_hash.hexdigest()
 
+
 def hash_to_scalar(data: str) -> Scalar:
     return Scalar(hex_to_int(cn_fast_hash(data)) % l)
+
 
 def hash_to_point(hex_value: str) -> Point:
     u = hex_to_int(cn_fast_hash(hex_value)) % q
@@ -611,31 +598,39 @@ def sqroot(xx: int) -> int:
         print("no square root!")
     return x
 
+
 def hex_to_int(h: str) -> int:
     # Input: String with hex value
     # Output: Int value corresponding
     # Conversion uses little indian. The function int(h,16) wont work as it uses big indian.
     return int.from_bytes(bytes.fromhex(h), "little")
 
+
 def int_to_hex(h: int) -> str:
-    return h.to_bytes(32,"little").hex()
+    return h.to_bytes(32, "little").hex()
+
 
 # Internal helper methods
 def exponent(b: int, e: int, m: int) -> int:
     return pow(b, e, m)
 
+
 def modp_inv(x: int) -> int:
     return pow(x, p - 2, p)
+
 
 def expmod(b: int, e: int, m: int) -> int:
     return pow(b, e, m)
 
+
 def inv(x: int) -> int:
     return pow(x, q - 2, q)
+
 
 def invert(x: int, p: int) -> int:
     # Assumes `p` is prime
     return exponent(x, p - 2, p)
+
 
 def point_compress(P) -> Point:
     zinv = modp_inv(P[2])
@@ -643,10 +638,13 @@ def point_compress(P) -> Point:
     y = P[1] * zinv % p
 
     bits = [(y >> i) & 1 for i in range(b - 1)] + [x & 1]
-    
-    bb = Point(bytes.hex(bytes([sum([bits[i * 8 + j] << j for j in range(8)]) for i in range(b // 8)])))
 
-    return bb 
+    bb = Point(
+        bytes.hex(bytes([sum([bits[i * 8 + j] << j for j in range(8)]) for i in range(b // 8)]))
+    )
+
+    return bb
+
 
 def verify_subgroup(P):
     return nacl.bindings.crypto_core_ed25519_is_valid_point(P.b)
@@ -665,7 +663,7 @@ I = exponent(2, (q - 1) // 4, q)
 inv8 = Scalar(8).invert()
 
 # The main subgroup default generators
-G = Point('5866666666666666666666666666666666666666666666666666666666666666')
+G = Point("5866666666666666666666666666666666666666666666666666666666666666")
 H = Scalar(8) * Point(cn_fast_hash(str(G)))
 # Neutral group element
 Z = Point(1)

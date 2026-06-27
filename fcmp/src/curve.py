@@ -1,49 +1,43 @@
-# MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
 
-## Acknowledgments
-# This project incorporates [`monero-oxide`](https://github.com/monero-oxide/monero-oxide), licensed under the [MIT License](https://github.com/monero-oxide/monero-oxide/blob/main/monero-oxide/LICENSE).
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
 
-# Weierstrass curve arithmetic and compressed-point encoding for Helios/Selene.
-#
-# Both curves: y² = x³ - 3x + B  (a = -3)
-#
-# Point encoding (GroupEncoding, 32 bytes):
-#   bytes[0..31] = x-coordinate little-endian
-#   bit 7 of bytes[31] = is_odd(y)
-#   identity = all zeros  (x=0, sign=0)
-#
-# Mirrors helioselene::HeliosPoint and SelenePoint in the Rust codebase.
+Weierstrass curve arithmetic and compressed-point encoding for Helios/Selene.
 
-from field import HeliosField, HelioseleneField
+Both curves: y² = x³ - 3x + B  (a = -3)
+
+Point encoding (GroupEncoding, 32 bytes):
+  bytes[0..31] = x-coordinate little-endian
+  bit 7 of bytes[31] = is_odd(y)
+  identity = all zeros  (x=0, sign=0)
+
+Mirrors helioselene::HeliosPoint and SelenePoint in the Rust codebase.
+"""
+
+from field import HeliosField, SeleneField
 
 # ---------------------------------------------------------------------------
 # Curve constants (a = -3 for both)
 # ---------------------------------------------------------------------------
 
-# Helios: base field = HeliosField (p = 2^255-19), scalar field = HelioseleneField
+# Helios: base field = HeliosField (p = 2^255-19), scalar field = SeleneField
 # B from point.rs (big-endian hex interpreted as integer)
-HELIOS_B = HeliosField(
-    0x26bdec0884fe05f20cb42071569fab6432be360d07da8c5b460b82b980fd8c60
-)
+HELIOS_B = HeliosField(0x26BDEC0884FE05F20CB42071569FAB6432BE360D07DA8C5B460B82B980FD8C60)
 HELIOS_GX = HeliosField(1)
-HELIOS_GY = HeliosField(
-    0x611dffc62fe02c759e5ac10f40e009b8e3b147387068aaf810dbdf2d817c67ba
-)
+HELIOS_GY = HeliosField(0x611DFFC62FE02C759E5AC10F40E009B8E3B147387068AAF810DBDF2D817C67BA)
 
-# Selene: base field = HelioseleneField, scalar field = HeliosField
-SELENE_B = HelioseleneField(
-    0x38c40d10c226ef3bc597c2e1e25bc748e3401c3d031d14ca2265f309ba81efe4
-)
-SELENE_GX = HelioseleneField(1)
-SELENE_GY = HelioseleneField(
-    0x39098c0a54bd9d2781c7d734720d5ca639ee79deeefcd74517fced93ad6635c0
-)
+# Selene: base field = SeleneField, scalar field = HeliosField
+SELENE_B = SeleneField(0x38C40D10C226EF3BC597C2E1E25BC748E3401C3D031D14CA2265F309BA81EFE4)
+SELENE_GX = SeleneField(1)
+SELENE_GY = SeleneField(0x39098C0A54BD9D2781C7D734720D5CA639EE79DEEEFCD74517FCED93AD6635C0)
 
 
 # ---------------------------------------------------------------------------
 # Jacobian scalar multiplication (avoids inversion per step, ~50x faster)
 # a = -3 for both curves → uses the specialized doubling formula.
 # ---------------------------------------------------------------------------
+
 
 def _jac_dbl(X, Y, Z, p, B):
     """Jacobian doubling for y² = x³ - 3x + B  (a = -3)."""
@@ -117,11 +111,12 @@ def _scalar_mul_jacobian(pt: "WPoint", k: int) -> "WPoint":
 # Generic affine Weierstrass point (reused for both curves)
 # ---------------------------------------------------------------------------
 
+
 class WPoint:
     """Affine Weierstrass point over a field class.
 
-    field_cls : HeliosField | HelioseleneField
-    B         : the curve constant (HeliosField or HelioseleneField instance)
+    field_cls : HeliosField | SeleneField
+    B         : the curve constant (HeliosField or SeleneField instance)
     x, y      : field elements, or both None for identity
     """
 
@@ -208,13 +203,14 @@ class WPoint:
 
     def __repr__(self) -> str:
         if self.is_identity():
-            return f"WPoint(identity)"
+            return "WPoint(identity)"
         return f"WPoint(x={self.x!r}, y={self.y!r})"
 
 
 # ---------------------------------------------------------------------------
 # Compressed-point encoding (matches GroupEncoding in point.rs)
 # ---------------------------------------------------------------------------
+
 
 def point_to_bytes(pt: WPoint) -> bytes:
     """Encode a point as 32 compressed bytes.
@@ -242,10 +238,10 @@ def _recover_y_helios(x: HeliosField):
     return y
 
 
-def _recover_y_selene(x: HelioseleneField):
+def _recover_y_selene(x: SeleneField):
     """Recover y for a Selene point (returns even y or None)."""
-    rhs = x.square() * x - HelioseleneField(3) * x + SELENE_B
-    return rhs.sqrt()  # HelioseleneField.sqrt() already normalizes to even
+    rhs = x.square() * x - SeleneField(3) * x + SELENE_B
+    return rhs.sqrt()  # SeleneField.sqrt() already normalizes to even
 
 
 def helios_from_bytes(b: bytes):
@@ -277,19 +273,112 @@ def selene_from_bytes(b: bytes):
     sign = (b[31] >> 7) & 1
     raw = bytearray(b)
     raw[31] &= 0x7F
-    x = HelioseleneField.from_bytes(bytes(raw))
+    x = SeleneField.from_bytes(bytes(raw))
     if x is None:
         return None
     if x.is_zero():
         if sign != 0:
             return None  # reject -0
-        return WPoint.identity(HelioseleneField, SELENE_B)
+        return WPoint.identity(SeleneField, SELENE_B)
     y = _recover_y_selene(x)
     if y is None:
         return None
     if y.is_odd() != bool(sign):
         y = -y
-    return WPoint(HelioseleneField, SELENE_B, x, y)
+    return WPoint(SeleneField, SELENE_B, x, y)
+
+
+# ---------------------------------------------------------------------------
+# Outer-curve (Wei25519 / Ed25519) decompression
+# ---------------------------------------------------------------------------
+#
+# Mirrors DivisorCurve::to_xy for EdwardsPoint in
+# monero_oxide/crypto/divisors/src/lib.rs
+# (E.2 of draft-ietf-lwig-curve-representations-02).
+#
+# Input:  32-byte Ed25519 compressed point
+#         (y-coord LE, high bit = sign of x)
+# Output: (HeliosField(wei_x), HeliosField(wei_y)) or None for identity/invalid
+
+_OC_P = 2**255 - 19
+_OC_D = (-121665 * pow(121666, _OC_P - 2, _OC_P)) % _OC_P
+_OC_Y2X = (486662 * pow(3, _OC_P - 2, _OC_P)) % _OC_P
+_OC_SQRT_M1 = 0x2B8324804FC1DF0B2B4D00993DFBD7A72F431806AD2FE478C4EE1B274A0EA0B0
+_OC_C = pow((_OC_P - 486664) % _OC_P, (_OC_P + 3) // 8, _OC_P) * _OC_SQRT_M1 % _OC_P
+# Wei25519 curve parameters (y² = x³ + Ax + B over _OC_P), mirroring divisors.py
+_WEI25519_A = 0x2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA984914A144
+_WEI25519_B = 0x7B425ED097B425ED097B425ED097B425ED097B425ED097B4260B5E9C7710C864
+
+
+def _wei25519_dbl_jac(X, Y, Z):
+    """Jacobian doubling for y² = x³ + _WEI25519_A·x + _WEI25519_B (general a, dbl-2007-bl)."""
+    p = _OC_P
+    if Z == 0:
+        return (0, 1, 0)
+    ZZ = Z * Z % p
+    W = (3 * X * X + _WEI25519_A * ZZ * ZZ) % p
+    S = Y * Z % p
+    B4 = 4 * X * Y * S % p
+    H = (W * W - 2 * B4) % p
+    X3 = 2 * H * S % p
+    Y3 = (W * (B4 - H) - 8 * Y * Y * S * S) % p
+    Z3 = 8 * S * S * S % p
+    return (X3, Y3, Z3)
+
+
+def _is_low_order_wei25519(wei_x: int, wei_y: int) -> bool:
+    """True if the Wei25519 point is low-order (cofactor-8 torsion: 8*P = identity)."""
+    X, Y, Z = wei_x, wei_y, 1
+    for _ in range(3):
+        X, Y, Z = _wei25519_dbl_jac(X, Y, Z)
+    return Z == 0
+
+
+def oc_from_bytes(b: bytes):
+    """Decompress a 32-byte Ed25519 compressed point to Wei25519 (x,y) affine.
+
+    Returns (HeliosField(x), HeliosField(y)) or None for the identity or an
+    invalid encoding.  Used to decode O_tilde / I_tilde / R / C_tilde from
+    FcmpInputCompressed 
+    """
+    if len(b) != 32:
+        raise ValueError(f"expected 32 bytes, got {len(b)}")
+    raw = bytearray(b)
+    x_is_odd = (raw[31] >> 7) & 1
+    raw[31] &= 0x7F
+    y_ed = int.from_bytes(raw, "little")
+    if y_ed >= _OC_P:
+        return None
+    y_sq = y_ed * y_ed % _OC_P
+    numer = (y_sq - 1) % _OC_P
+    denom = (_OC_D * y_sq + 1) % _OC_P
+    x_sq = numer * pow(denom, _OC_P - 2, _OC_P) % _OC_P
+    x_ed = pow(x_sq, (_OC_P + 3) // 8, _OC_P)
+    if x_ed * x_ed % _OC_P != x_sq:
+        x_ed = x_ed * _OC_SQRT_M1 % _OC_P
+    if x_ed * x_ed % _OC_P != x_sq:
+        return None
+    if (x_ed % 2) != x_is_odd:
+        x_ed = (_OC_P - x_ed) % _OC_P
+    if x_ed == 0 and x_is_odd:
+        return None
+    one_minus_y = (1 - y_ed) % _OC_P
+    if one_minus_y == 0:
+        return None
+    wei_x = ((1 + y_ed) * pow(one_minus_y, _OC_P - 2, _OC_P) + _OC_Y2X) % _OC_P
+    denom_y = one_minus_y * x_ed % _OC_P
+    if denom_y == 0:
+        return None
+    wei_y = _OC_C * (1 + y_ed) % _OC_P * pow(denom_y, _OC_P - 2, _OC_P) % _OC_P
+    # Verify the recovered point satisfies y² = x³ + Ax + B over Wei25519.
+    lhs = wei_y * wei_y % _OC_P
+    rhs = (pow(wei_x, 3, _OC_P) + _WEI25519_A * wei_x + _WEI25519_B) % _OC_P
+    if lhs != rhs:
+        return None
+    # Reject low-order points (cofactor-8 torsion: 8*P = identity means P ∉ prime-order subgroup).
+    if _is_low_order_wei25519(wei_x, wei_y):
+        return None
+    return (HeliosField(wei_x), HeliosField(wei_y))
 
 
 # ---------------------------------------------------------------------------
@@ -297,4 +386,4 @@ def selene_from_bytes(b: bytes):
 # ---------------------------------------------------------------------------
 
 HELIOS_G = WPoint(HeliosField, HELIOS_B, HELIOS_GX, HELIOS_GY)
-SELENE_G = WPoint(HelioseleneField, SELENE_B, SELENE_GX, SELENE_GY)
+SELENE_G = WPoint(SeleneField, SELENE_B, SELENE_GX, SELENE_GY)

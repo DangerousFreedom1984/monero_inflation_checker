@@ -105,9 +105,7 @@ class Keccak:
 
         # Check that the string has an even number of characters i.e. whole number of bytes
         if len(string) % 2 != 0:
-            raise KeccakError.KeccakError(
-                "The provided string does not end with a full byte"
-            )
+            raise KeccakError.KeccakError("The provided string does not end with a full byte")
 
         # Perform the modification
         temp = ""
@@ -150,10 +148,8 @@ class Keccak:
         if self.w % 8 != 0:
             raise KeccakError("w is not a multiple of 8")
         if len(string) != 2 * (self.b) // 8:
-            raise KeccakError.KeccakError(
-                "string can't be divided in 25 blocks of w bits\
-            i.e. string must have exactly b bits"
-            )
+            raise KeccakError.KeccakError("string can't be divided in 25 blocks of w bits\
+            i.e. string must have exactly b bits")
 
         # Convert
         output = [
@@ -166,9 +162,7 @@ class Keccak:
         for x in range(5):
             for y in range(5):
                 offset = 2 * ((5 * y + x) * self.w) // 8
-                output[x][y] = self.fromHexStringToLane(
-                    string[offset : offset + (2 * self.w // 8)]
-                )
+                output[x][y] = self.fromHexStringToLane(string[offset : offset + (2 * self.w // 8)])
         return output
 
     def convertTableToStr(self, table):
@@ -277,9 +271,7 @@ class Keccak:
             if nbr_bits_filled == 0:
                 my_byte = 0
             else:
-                my_byte = int(
-                    my_string[nr_bytes_filled * 2 : nr_bytes_filled * 2 + 2], 16
-                )
+                my_byte = int(my_string[nr_bytes_filled * 2 : nr_bytes_filled * 2 + 2], 16)
             my_byte = my_byte >> (8 - nbr_bits_filled)
             my_byte = my_byte + 2 ** (nbr_bits_filled) + 2**7
             my_byte = "%02X" % my_byte
@@ -288,9 +280,7 @@ class Keccak:
             if nbr_bits_filled == 0:
                 my_byte = 0
             else:
-                my_byte = int(
-                    my_string[nr_bytes_filled * 2 : nr_bytes_filled * 2 + 2], 16
-                )
+                my_byte = int(my_string[nr_bytes_filled * 2 : nr_bytes_filled * 2 + 2], 16)
             my_byte = my_byte >> (8 - nbr_bits_filled)
             my_byte = my_byte + 2 ** (nbr_bits_filled)
             my_byte = "%02X" % my_byte
@@ -313,18 +303,13 @@ class Keccak:
 
         # Check the inputs
         if (r < 0) or (r % 8 != 0):
-            raise KeccakError.KeccakError(
-                "r must be a multiple of 8 in this implementation"
-            )
+            raise KeccakError.KeccakError("r must be a multiple of 8 in this implementation")
         if n % 8 != 0:
             raise KeccakError.KeccakError("outputLength must be a multiple of 8")
         self.setB(r + c)
 
         if verbose:
-            print(
-                "Create a Keccak function with (r=%d, c=%d (i.e. w=%d))"
-                % (r, c, (r + c) // 25)
-            )
+            print("Create a Keccak function with (r=%d, c=%d (i.e. w=%d))" % (r, c, (r + c) // 25))
 
         # Compute lane length (in bits)
         w = (r + c) // 25
@@ -342,10 +327,7 @@ class Keccak:
         P = self.pad10star1(M, r)
 
         if verbose:
-            print(
-                "String ready to be absorbed: %s (will be completed by %d x '00')"
-                % (P, c // 8)
-            )
+            print("String ready to be absorbed: %s (will be completed by %d x '00')" % (P, c // 8))
 
         # Absorbing phase
         for i in range((len(P) * 8 // 2) // r):

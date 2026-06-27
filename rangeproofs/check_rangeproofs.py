@@ -1,12 +1,13 @@
-"""
+"""Verification of range proofs: Borromean, Bulletproofs and Bulletproofs+.
+
 This work, "MIC - Monero Inflation Checker", is a derivative of:
     "Mininero" by ShenNoether (https://github.com/monero-project/mininero).
-    "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
+    "dumb25519" by SarangNoether
+        (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
-import com_db
+
 import misc_func
-import json
 
 # from varint import encode as to_varint
 import df25519
@@ -16,21 +17,17 @@ from df25519 import (
     ScalarVector,
     PointVector,
     random_scalar,
-    random_point,
     hash_to_scalar,
     hash_to_point,
     cn_fast_hash,
 )
 import copy
-import varint_mic as varint
-import multiprocessing
 import settings_df25519
-import time
 
 
-#--------------------------------------------------------------------------------------------
-### Commitments 
-#--------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------
+### Commitments
+# --------------------------------------------------------------------------------------------
 def check_commitments(resp_json):
     if "pseudoOuts" in resp_json["rct_signatures"]:
         Cin = Scalar(0) * df25519.G
@@ -49,7 +46,9 @@ def check_commitments(resp_json):
     else:
         # "Commitments must match in RCTTypeFull transactions. Otherwise the MLSAG ring signature would fail."
         return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def check_commitments_bp1(resp_json):
     Cin = df25519.Z
     Cout = df25519.Z
@@ -64,13 +63,17 @@ def check_commitments_bp1(resp_json):
         return False
     else:
         return True
-#--------------------------------------------------------------------------------------------
-### Borromean 
-#--------------------------------------------------------------------------------------------
-def check_sig_Borromean(resp_json, sig_ind):
+
+
+# --------------------------------------------------------------------------------------------
+### Borromean
+# --------------------------------------------------------------------------------------------
+def check_sig_borromean(resp_json, sig_ind):
     P1, P2, bbee, bbs0, bbs1 = get_borromean_vars(resp_json, sig_ind)
-    return check_Borromean(P1, P2, bbee, bbs0, bbs1)
-#--------------------------------------------------------------------------------------------
+    return check_borromean(P1, P2, bbee, bbs0, bbs1)
+
+
+# --------------------------------------------------------------------------------------------
 def get_borromean_vars(resp_json, ind):
     Ci = resp_json["rctsig_prunable"]["rangeSigs"][ind]["Ci"]
     asig = resp_json["rctsig_prunable"]["rangeSigs"][ind]["asig"]
@@ -81,15 +84,13 @@ def get_borromean_vars(resp_json, ind):
         bbs0.append(Scalar(asig[64 * i : 64 * (i + 1)]))
         bbs1.append(Scalar(asig[64 * 64 + 64 * i : 64 * 64 + 64 * (i + 1)]))
         P1.append(Point(Ci[64 * i : 64 * (i + 1)]))
-        P2.append(
-            P1[i]
-            - Scalar(2**i * 8)
-            * df25519.Point(df25519.cn_fast_hash(str(df25519.G)))
-        )
+        P2.append(P1[i] - Scalar(2**i * 8) * df25519.Point(df25519.cn_fast_hash(str(df25519.G))))
 
     return P1, P2, bbee, bbs0, bbs1
-#--------------------------------------------------------------------------------------------
-def check_Borromean(P1, P2, bbee, bbs0, bbs1, details=0):
+
+
+# --------------------------------------------------------------------------------------------
+def check_borromean(P1, P2, bbee, bbs0, bbs1, details=0):
     LV = ""
     for j in range(64):
         LL = bbee * P1[j] + bbs0[j] * df25519.G
@@ -98,9 +99,11 @@ def check_Borromean(P1, P2, bbee, bbs0, bbs1, details=0):
 
     eeComp = df25519.hash_to_scalar(LV)
     res = bbee - eeComp
-    return res == Scalar(0) 
-#--------------------------------------------------------------------------------------------
-def generate_Borromean(ai, Ci, CiH, b):
+    return res == Scalar(0)
+
+
+# --------------------------------------------------------------------------------------------
+def generate_borromean(ai, Ci, CiH, b):
     alpha = []
     bbs1 = misc_func.scalar_matrix(64, 0, 0)
     bbs0 = misc_func.scalar_matrix(64, 0, 0)
@@ -129,16 +132,19 @@ def generate_Borromean(ai, Ci, CiH, b):
             bbs1[j] = alpha[j] - ai[j] * cc
 
     return bbee, bbs0, bbs1
-#--------------------------------------------------------------------------------------------
-### Bulletproofs 
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
+### Bulletproofs
+# --------------------------------------------------------------------------------------------
 def check_sig_bp1(resp_json):
     proofs = get_vars_bp1(resp_json)
     return check_bp([proofs])
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def get_vars_bp1(resp_json):
     ind = 0
-    N = 64
     A = Point(resp_json["rctsig_prunable"]["bp"][ind]["A"])
     S = Point(resp_json["rctsig_prunable"]["bp"][ind]["S"])
     T1 = Point(resp_json["rctsig_prunable"]["bp"][ind]["T1"])
@@ -155,19 +161,27 @@ def get_vars_bp1(resp_json):
     b = Scalar(resp_json["rctsig_prunable"]["bp"][ind]["b"])
     t = Scalar(resp_json["rctsig_prunable"]["bp"][ind]["t"])
 
-    V = PointVector([df25519.inv8 * Point(one_outPk_aux) for one_outPk_aux in resp_json["rct_signatures"]["outPk"]])
+    V = PointVector(
+        [
+            df25519.inv8 * Point(one_outPk_aux)
+            for one_outPk_aux in resp_json["rct_signatures"]["outPk"]
+        ]
+    )
 
     return [V, A, S, T1, T2, taux, mu, L, R, a, b, t]
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 ### Bulletproofs Plus
-#--------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------
 def check_sig_bp_plus(resp_json):
     proofs = get_vars_bp_plus(resp_json)
     return check_bp_plus([proofs])
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def get_vars_bp_plus(resp_json):
     ind = 0
-    N = 64
     A = Point(resp_json["rctsig_prunable"]["bpp"][ind]["A"])
     A1 = Point(resp_json["rctsig_prunable"]["bpp"][ind]["A1"])
     B = Point(resp_json["rctsig_prunable"]["bpp"][ind]["B"])
@@ -180,16 +194,25 @@ def get_vars_bp_plus(resp_json):
     L = PointVector([Point(one_L_aux) for one_L_aux in L_aux])
     R = PointVector([Point(one_R_aux) for one_R_aux in R_aux])
 
-    V = PointVector([df25519.inv8 * Point(one_outPk_aux) for one_outPk_aux in resp_json["rct_signatures"]["outPk"]])
+    V = PointVector(
+        [
+            df25519.inv8 * Point(one_outPk_aux)
+            for one_outPk_aux in resp_json["rct_signatures"]["outPk"]
+        ]
+    )
 
     return [V, A, A1, B, r1, s1, d1, L, R]
-#--------------------------------------------------------------------------------------------
-### Functions used in Bulletproofs(+) 
-#--------------------------------------------------------------------------------------------
-def mash(hcache, s1 = "", s2="", s3="", s4=""):
+
+
+# --------------------------------------------------------------------------------------------
+### Functions used in Bulletproofs(+)
+# --------------------------------------------------------------------------------------------
+def mash(hcache, s1="", s2="", s3="", s4=""):
     cache = hash_to_scalar(str(hcache) + str(s1) + str(s2) + str(s3) + str(s4))
     return cache
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def scalar_to_bits(s, N):
     result = []
     for i in range(N - 1, -1, -1):
@@ -199,87 +222,111 @@ def scalar_to_bits(s, N):
             result.append(Scalar(1))
             s -= Scalar(2**i)
     return ScalarVector(list(reversed(result)))
-#--------------------------------------------------------------------------------------------
-def sum_scalar(s, l):
-    if not int(l) & int(l - 1) == 0:
-        raise ValueError("We need l to be a power of 2!")
 
-    if l == 0:
+
+# --------------------------------------------------------------------------------------------
+def geometric_sum(base, n):
+    """Return the geometric sum ``base**0 + base**1 + ... + base**(n-1)``.
+
+    ``n`` must be a power of two (the doubling recurrence relies on it). Distinct
+    from :func:`sum_of_scalar_powers`, which sums ``base**1 .. base**n``.
+    """
+    if not int(n) & int(n - 1) == 0:
+        raise ValueError("We need n to be a power of 2!")
+
+    if n == 0:
         return Scalar(0)
-    if l == 1:
+    if n == 1:
         return Scalar(1)
 
-    r = Scalar(1) + s
-    while l > 2:
-        s = s * s
-        r += s * r
-        l = l // 2
+    r = Scalar(1) + base
+    while n > 2:
+        base = base * base
+        r += base * r
+        n = n // 2
     return r
-#--------------------------------------------------------------------------------------------
-def exp_scalar(s, l):
-    return ScalarVector([s**i for i in range(l)])
-#--------------------------------------------------------------------------------------------
-def vector_sub(vec, sca):
-    return [one_vec - sca for one_vec in vec]
-#--------------------------------------------------------------------------------------------
-def vector_add(vec, sca):
-    return [one_vec + sca for one_vec in vec]
-#--------------------------------------------------------------------------------------------
-def vec_add_vec(vec, vec2):
-    if len(vec) != len(vec2):
-        print("Error at vec_add_vec: vector with different lengths")
-        return 0
-    vec_new = []
-    for i in range(len(vec)):
-        vec_new.append(vec[i] + vec2[i])
 
-    return vec_new
-#--------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------
+def powers_of(base, n):
+    """Return the vector of powers ``[base**0, base**1, ..., base**(n-1)]``."""
+    return ScalarVector([base**i for i in range(n)])
+
+
+# --------------------------------------------------------------------------------------------
+def subtract_scalar_from_vector(vec, scalar):
+    """Subtract ``scalar`` from every element of ``vec`` (element-wise broadcast)."""
+    return [one_vec - scalar for one_vec in vec]
+
+
+# --------------------------------------------------------------------------------------------
+def add_scalar_to_vector(vec, scalar):
+    """Add ``scalar`` to every element of ``vec`` (element-wise broadcast)."""
+    return [one_vec + scalar for one_vec in vec]
+
+
+# --------------------------------------------------------------------------------------------
+def add_vectors(vec_a, vec_b):
+    """Return the element-wise sum of two equal-length vectors."""
+    if len(vec_a) != len(vec_b):
+        settings_df25519.logger_inflation.error(
+            "add_vectors: vectors with different lengths (%d != %d)",
+            len(vec_a),
+            len(vec_b),
+        )
+        return 0
+    return [vec_a[i] + vec_b[i] for i in range(len(vec_a))]
+
+
+# --------------------------------------------------------------------------------------------
 def sum_of_scalar_powers(x, n):
     res = Scalar(0)
     for i in range(1, n + 1):
         res += x**i
     return res
-#--------------------------------------------------------------------------------------------
-### Bulletproofs 
-#--------------------------------------------------------------------------------------------
-def inner_product_bp(data,hash_cache):
-    G,H,U,a,b,L,R = data
+
+
+# --------------------------------------------------------------------------------------------
+### Bulletproofs
+# --------------------------------------------------------------------------------------------
+def inner_product_bp(data, hash_cache):
+    G, H, U, a, b, L, R = data
 
     n = len(G)
     if n == 1:
-        return [a[0],b[0]],hash_cache
+        return [a[0], b[0]], hash_cache
 
     n = n // 2
-    cL = a[:n]**b[n:]
-    cR = a[n:]**b[:n]
-    L = (G[n:]*a[:n] + H[:n]*b[n:] + U*cL)*df25519.inv8
-    R = (G[:n]*a[n:] + H[n:]*b[:n] + U*cR)*df25519.inv8
+    cL = a[:n] ** b[n:]
+    cR = a[n:] ** b[:n]
+    L = (G[n:] * a[:n] + H[:n] * b[n:] + U * cL) * df25519.inv8
+    R = (G[:n] * a[n:] + H[n:] * b[:n] + U * cR) * df25519.inv8
 
-    x = mash(str(hash_cache),str(L),str(R)) #corresponds to w[round]
+    x = mash(str(hash_cache), str(L), str(R))  # corresponds to w[round]
     hash_cache = copy.copy(x)
 
-    G = (G[:n]*x.invert())*(G[n:]*x)
-    H = (H[:n]*x)*(H[n:]*x.invert())
+    G = (G[:n] * x.invert()) * (G[n:] * x)
+    H = (H[:n] * x) * (H[n:] * x.invert())
 
-    a = a[:n]*x + a[n:]*x.invert()
-    b = b[:n]*x.invert() + b[n:]*x
-    
-    return [G,H,U,a,b,L,R] ,hash_cache
-#--------------------------------------------------------------------------------------------
-def prove_bp(sv,gammas):
+    a = a[:n] * x + a[n:] * x.invert()
+    b = b[:n] * x.invert() + b[n:] * x
+
+    return [G, H, U, a, b, L, R], hash_cache
+
+
+# --------------------------------------------------------------------------------------------
+def prove_bp(sv, gammas):
     N = 64
     M = len(sv)
-    MN = M*N
+    MN = M * N
 
-    if (len(sv)!=len(gammas)):
-        print("sv and gamma vectors have different lengths.")
+    if len(sv) != len(gammas):
+        settings_df25519.logger_inflation.error("sv and gamma vectors have different lengths.")
         return False
 
     # curve points
     G = df25519.G
     H = df25519.H
-    domain = str("bulletproof")
     Hi = settings_df25519.Hi_df[0:MN]
     Gi = settings_df25519.Gi_df[0:MN]
 
@@ -287,8 +334,8 @@ def prove_bp(sv,gammas):
     V = PointVector([])
     aL = ScalarVector([])
     for i in range(M):
-        V.append((H*sv[i] + G*gammas[i])*df25519.inv8)
-        aL.extend(scalar_to_bits(sv[i],N))
+        V.append((H * sv[i] + G * gammas[i]) * df25519.inv8)
+        aL.extend(scalar_to_bits(sv[i], N))
 
     strV = "".join([str(one_V) for one_V in V])
     hash_cache = str(hash_to_scalar(strV))
@@ -296,19 +343,19 @@ def prove_bp(sv,gammas):
     # set bit arrays
     aR = ScalarVector([])
     for bit in aL.scalars:
-        aR.append(bit-Scalar(1))
+        aR.append(bit - Scalar(1))
 
     alpha = random_scalar()
 
-    A = (Gi*aL + Hi*aR + G*alpha)*df25519.inv8
+    A = (Gi * aL + Hi * aR + G * alpha) * df25519.inv8
 
-    sL = ScalarVector([random_scalar()]*(M*N))
-    sR = ScalarVector([random_scalar()]*(M*N))
+    sL = ScalarVector([random_scalar()] * (M * N))
+    sR = ScalarVector([random_scalar()] * (M * N))
     rho = random_scalar()
-    S = (Gi*sL + Hi*sR + G*rho)*df25519.inv8
+    S = (Gi * sL + Hi * sR + G * rho) * df25519.inv8
 
     # get challenges
-    hash_cache = mash(str(hash_cache),str(A),str(S))
+    hash_cache = mash(str(hash_cache), str(A), str(S))
 
     y = copy.copy(hash_cache)
     y_inv = y.invert()
@@ -316,73 +363,82 @@ def prove_bp(sv,gammas):
     hash_cache = copy.copy(z)
 
     # polynomial coefficients
-    l0 = aL - ScalarVector([z]*(M*N))
+    l0 = aL - ScalarVector([z] * (M * N))
     l1 = sL
 
     # ugly sum
     zeros_twos = []
-    for i in range (M*N):
+    for i in range(M * N):
         zeros_twos.append(Scalar(0))
-        for j in range(1,int(M+1)):
+        for j in range(1, int(M + 1)):
             temp = Scalar(0)
-            if i >= (j-1)*N and i < j*N:
-                temp = Scalar(2)**(i-(j-1)*N)
-            zeros_twos[-1] += temp*(z**(1+j))
-    
+            if i >= (j - 1) * N and i < j * N:
+                temp = Scalar(2) ** (i - (j - 1) * N)
+            zeros_twos[-1] += temp * (z ** (1 + j))
+
     # more polynomial coefficients
-    r0 = aR + ScalarVector([z]*(M*N))
-    r0 = r0*exp_scalar(y,M*N)
+    r0 = aR + ScalarVector([z] * (M * N))
+    r0 = r0 * powers_of(y, M * N)
     r0 += ScalarVector(zeros_twos)
-    r1 = exp_scalar(y,M*N)*sR
+    r1 = powers_of(y, M * N) * sR
 
     # build the polynomials
-    t0 = l0**r0
     t1 = l0**r1 + l1**r0
     t2 = l1**r1
 
     tau1 = random_scalar()
     tau2 = random_scalar()
-    T1 = (H*t1 + G*tau1)*df25519.inv8
-    T2 = (H*t2 + G*tau2)*df25519.inv8
+    T1 = (H * t1 + G * tau1) * df25519.inv8
+    T2 = (H * t2 + G * tau2) * df25519.inv8
 
-    x = mash(str(hash_cache),str(z),str(T1),str(T2))
+    x = mash(str(hash_cache), str(z), str(T1), str(T2))
     hash_cache = copy.copy(x)
 
-    x = copy.copy(hash_cache) # challenge
+    x = copy.copy(hash_cache)  # challenge
 
-    taux = tau1*x + tau2*(x**2)
-    for j in range(1,int(M+1)):
-        gamma = gammas[j-1]
-        taux += z**(1+j)*gamma
-    mu = x*rho+alpha
-    
-    l = l0 + l1*x
-    r = r0 + r1*x
+    taux = tau1 * x + tau2 * (x**2)
+    for j in range(1, int(M + 1)):
+        gamma = gammas[j - 1]
+        taux += z ** (1 + j) * gamma
+    mu = x * rho + alpha
+
+    l = l0 + l1 * x
+    r = r0 + r1 * x
     t = l**r
 
-    x_ip = mash(str(hash_cache),str(x),str(taux),str(mu),str(t))
+    x_ip = mash(str(hash_cache), str(x), str(taux), str(mu), str(t))
     hash_cache = copy.copy(x_ip)
 
     L = PointVector([])
     R = PointVector([])
-   
+
     # initial inner product inputs
-    data_ip = [Gi,PointVector([Hi[i]*(y_inv**i) for i in range(len(Hi))]),H*x_ip,l,r,None,None]
+    data_ip = [
+        Gi,
+        PointVector([Hi[i] * (y_inv**i) for i in range(len(Hi))]),
+        H * x_ip,
+        l,
+        r,
+        None,
+        None,
+    ]
     while True:
-        data_ip,hash_cache = inner_product_bp(data_ip,hash_cache)
+        data_ip, hash_cache = inner_product_bp(data_ip, hash_cache)
 
         # we have reached the end of the recursion
         if len(data_ip) == 2:
-            return [V,A,S,T1,T2,taux,mu,L,R,data_ip[0],data_ip[1],t]
+            return [V, A, S, T1, T2, taux, mu, L, R, data_ip[0], data_ip[1], t]
 
         # we are not done yet
         L.append(data_ip[-2])
         R.append(data_ip[-1])
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def check_bp(proofs):
     N = 64
     # determine the length of the longest proof
-    max_MN = 2**max([len(proof[7]) for proof in proofs])
+    max_MN = 2 ** max([len(proof[7]) for proof in proofs])
 
     # curve points
     Z = df25519.Z
@@ -397,17 +453,17 @@ def check_bp(proofs):
     y1 = Scalar(0)
     z1 = Scalar(0)
     z3 = Scalar(0)
-    z4 = [Scalar(0)]*max_MN
-    z5 = [Scalar(0)]*max_MN
-    scalars = ScalarVector([]) # for final check
-    points = PointVector([]) # for final check
+    z4 = [Scalar(0)] * max_MN
+    z5 = [Scalar(0)] * max_MN
+    scalars = ScalarVector([])  # for final check
+    points = PointVector([])  # for final check
 
     # run through each proof
     for proof in proofs:
-        V,A,S,T1,T2,taux,mu,L,R,a,b,t = proof
+        V, A, S, T1, T2, taux, mu, L, R, a, b, t = proof
 
         # get size information
-        M = 2**len(L)//N
+        M = 2 ** len(L) // N
 
         # weighting factors for batching
         weight_y = random_scalar()
@@ -420,7 +476,7 @@ def check_bp(proofs):
         strV = "".join([str(one_V) for one_V in V])
 
         hash_cache = str(hash_to_scalar(strV))
-        
+
         y = mash(str(hash_cache), str(A), str(S))
 
         if y == Scalar(0):
@@ -431,58 +487,58 @@ def check_bp(proofs):
         z = hash_to_scalar(str(y))
         hash_cache = copy.copy(z)
 
-        x = mash(str(hash_cache),str(z),str(T1),str(T2))
+        x = mash(str(hash_cache), str(z), str(T1), str(T2))
 
         hash_cache = copy.copy(x)
 
         if x == Scalar(0):
             raise ArithmeticError
 
-        x_ip = mash(str(hash_cache),str(x),str(taux),str(mu),str(t))
+        x_ip = mash(str(hash_cache), str(x), str(taux), str(mu), str(t))
         hash_cache = copy.copy(x_ip)
 
         if x_ip == Scalar(0):
             raise ArithmeticError
 
-        y0 += -taux*weight_y
+        y0 += -taux * weight_y
 
-        ip1y = sum_scalar(y,M*N)
-        k = -(z**2)*ip1y
-        for j in range(1,int(M+1)):
-            k -= (z**(j+2))*sum_scalar(Scalar(2),N)
+        ip1y = geometric_sum(y, M * N)
+        k = -(z**2) * ip1y
+        for j in range(1, int(M + 1)):
+            k -= (z ** (j + 2)) * geometric_sum(Scalar(2), N)
 
-        y1 += (t-(z*ip1y+k))*weight_y
+        y1 += (t - (z * ip1y + k)) * weight_y
 
         for j in range(len(V)):
-            scalars.append(z**(j+2)*weight_y)
-            points.append(V[j]*Scalar(8))
-        scalars.append(x*weight_y)
-        points.append(T1*Scalar(8))
-        scalars.append(x**2*weight_y)
-        points.append(T2*Scalar(8))
+            scalars.append(z ** (j + 2) * weight_y)
+            points.append(V[j] * Scalar(8))
+        scalars.append(x * weight_y)
+        points.append(T1 * Scalar(8))
+        scalars.append(x**2 * weight_y)
+        points.append(T2 * Scalar(8))
 
         scalars.append(weight_z)
-        points.append(A*Scalar(8))
-        scalars.append(x*weight_z)
-        points.append(S*Scalar(8))
+        points.append(A * Scalar(8))
+        scalars.append(x * weight_z)
+        points.append(S * Scalar(8))
 
         # inner product
         W = ScalarVector([])
         for i in range(len(L)):
-            W.append(mash(str(hash_cache),str(L[i]),str(R[i])))
+            W.append(mash(str(hash_cache), str(L[i]), str(R[i])))
             hash_cache = copy.copy(W[i])
             if W[i] == Scalar(0):
                 raise ArithmeticError
         W_inv = W.invert()
 
-        for i in range(M*N):
+        for i in range(M * N):
             index = copy.copy(i)
             g = copy.copy(a)
-            h = b*((y_inv)**i)
-            for j in range(len(L)-1,-1,-1):
-                J = len(W)-j-1
+            h = b * ((y_inv) ** i)
+            for j in range(len(L) - 1, -1, -1):
+                J = len(W) - j - 1
                 base_power = 2**j
-                if index//base_power == 0:
+                if index // base_power == 0:
                     g *= W_inv[J]
                     h *= W[J]
                 else:
@@ -491,38 +547,40 @@ def check_bp(proofs):
                     index -= base_power
 
             g += z
-            h -= (z*(y**i) + (z**(2+i//N))*(Scalar(2)**(i%N)))*((y_inv)**i)
+            h -= (z * (y**i) + (z ** (2 + i // N)) * (Scalar(2) ** (i % N))) * ((y_inv) ** i)
 
-            z4[i] -= g*weight_z
-            z5[i] -= h*weight_z
+            z4[i] -= g * weight_z
+            z5[i] -= h * weight_z
 
-        z1 += mu*weight_z
+        z1 += mu * weight_z
 
         for i in range(len(L)):
-            scalars.append(W[i]**2*weight_z)
-            points.append(L[i]*Scalar(8))
-            scalars.append(W_inv[i]**2*weight_z)
-            points.append(R[i]*Scalar(8))
-        z3 += (t-a*b)*x_ip*weight_z
+            scalars.append(W[i] ** 2 * weight_z)
+            points.append(L[i] * Scalar(8))
+            scalars.append(W_inv[i] ** 2 * weight_z)
+            points.append(R[i] * Scalar(8))
+        z3 += (t - a * b) * x_ip * weight_z
 
     # now check all proofs together
-    scalars.append(y0-z1)
+    scalars.append(y0 - z1)
     points.append(G)
-    scalars.append(z3-y1)
+    scalars.append(z3 - y1)
     points.append(H)
-    for i in range(M*N):
+    for i in range(M * N):
         scalars.append(z4[i])
         points.append(Gi[i])
         scalars.append(z5[i])
         points.append(Hi[i])
-    
-    if not df25519.multiexp_naive(scalars,points) == Z:
+
+    if not df25519.multiexp_naive(scalars, points) == Z:
         return False
-    
+
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 ### Bulletproofs Plus
-#--------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------
 class BulletproofPlus:
     def __init__(self, V, A, A1, B, r1, s1, d1, L, R, seed=None, gammas=None):
         self.V = V
@@ -538,7 +596,9 @@ class BulletproofPlus:
         # # NOTE: not public data; here for convenience only
         self.seed = seed
         self.gammas = gammas
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 class InnerProductRound:
     def __init__(self, Gi, Hi, G, H, a, b, alpha, y, tr, seed):
         # Common data
@@ -569,7 +629,9 @@ class InnerProductRound:
 
         # Seed for auxiliary data embedding
         self.seed = seed
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def wip_bp_plus(a, b, y):
     if not len(a) == len(b):
         raise IndexError("Weighted inner product vectors must have identical size!")
@@ -582,7 +644,9 @@ def wip_bp_plus(a, b, y):
     for i in range(len(a)):
         r += a[i] * y ** (i + 1) * b[i]
     return r
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def inner_product_bp_plus(data):
     n = len(data.Gi)
 
@@ -629,12 +693,9 @@ def inner_product_bp_plus(data):
     cR = wip_bp_plus(a2 * data.y**n, b1, data.y)
 
     data.L.append(
-        (G2 ** (a1 * data.y.invert() ** n) + H1**b2 + data.H * cL + data.G * dL)
-        * df25519.inv8
+        (G2 ** (a1 * data.y.invert() ** n) + H1**b2 + data.H * cL + data.G * dL) * df25519.inv8
     )
-    data.R.append(
-        (G1 ** (a2 * data.y**n) + H2**b1 + data.H * cR + data.G * dR) * df25519.inv8
-    )
+    data.R.append((G1 ** (a2 * data.y**n) + H2**b1 + data.H * cR + data.G * dR) * df25519.inv8)
 
     data.tr = mash(str(data.tr), str(data.L[-1]), str(data.R[-1]))
     e = copy.copy(data.tr)
@@ -647,17 +708,17 @@ def inner_product_bp_plus(data):
     data.alpha = dL * e**2 + data.alpha + dR * e.invert() ** 2
 
     data.round += 1
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def prove_bp_plus(sv, gamma):
     N = 64
     M = len(sv)
     MN = M * N
 
-    if (len(sv)!=len(gamma)):
-        print("sv and gamma vectors have different lengths.")
+    if len(sv) != len(gamma):
+        settings_df25519.logger_inflation.error("sv and gamma vectors have different lengths.")
         return False
-
-    domain = str("bulletproof_plus")
 
     V = PointVector([])
     aL = ScalarVector([])
@@ -672,9 +733,7 @@ def prove_bp_plus(sv, gamma):
         aR.append(bit - Scalar(1))
 
     domain_separator_transcript = str("bulletproof_plus_transcript")
-    transcript = hash_to_point(
-        cn_fast_hash(domain_separator_transcript.encode("utf-8").hex())
-    )
+    transcript = hash_to_point(cn_fast_hash(domain_separator_transcript.encode("utf-8").hex()))
 
     strV = ""
     for i in range(len(V)):
@@ -685,7 +744,11 @@ def prove_bp_plus(sv, gamma):
 
     alpha = random_scalar()
 
-    A = (settings_df25519.Gi_plus_df[0:MN] * aL + settings_df25519.Hi_plus_df[0:MN] * aR + df25519.G * alpha) * df25519.inv8
+    A = (
+        settings_df25519.Gi_plus_df[0:MN] * aL
+        + settings_df25519.Hi_plus_df[0:MN] * aR
+        + df25519.G * alpha
+    ) * df25519.inv8
 
     y = mash(str(transcript), str(A))
 
@@ -702,15 +765,15 @@ def prove_bp_plus(sv, gamma):
         for i in range(N):
             d[j * N + i] = d[(j - 1) * N + i] * z_squared
 
-    y_powers = exp_scalar(y, MN + 2)
+    y_powers = powers_of(y, MN + 2)
 
-    aL1 = vector_sub(aL, z)
-    aR1 = vector_add(aR, z)
+    aL1 = subtract_scalar_from_vector(aL, z)
+    aR1 = add_scalar_to_vector(aR, z)
     d_y = []
     for i in range(MN):
         d_y.append(d[i] * y_powers[MN - i])
 
-    aR1 = vec_add_vec(aR1, d_y)
+    aR1 = add_vectors(aR1, d_y)
 
     alpha1 = copy.copy(alpha)
     temp = Scalar(1)
@@ -722,8 +785,8 @@ def prove_bp_plus(sv, gamma):
     seed = None
 
     ip_data = InnerProductRound(
-        settings_df25519.Gi_plus_df[0:64*len(sv)],
-        settings_df25519.Hi_plus_df[0:64*len(sv)],
+        settings_df25519.Gi_plus_df[0 : 64 * len(sv)],
+        settings_df25519.Hi_plus_df[0 : 64 * len(sv)],
         df25519.G,
         df25519.H,
         aL1,
@@ -731,7 +794,7 @@ def prove_bp_plus(sv, gamma):
         alpha1,
         y,
         transcript,
-        seed
+        seed,
     )
     while True:
         inner_product_bp_plus(ip_data)
@@ -751,8 +814,19 @@ def prove_bp_plus(sv, gamma):
                 seed,
                 gamma,
             )
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def check_bp_plus(proofs):
+    """Verify one or more Bulletproofs+ range proofs (batched).
+
+    Single-letter names follow the Bulletproofs+ paper:
+      G, H        base generators;   Gi, Hi   vector generators
+      M, N, MN    aggregation count, bit width, and their product
+      y, z, e     Fiat-Shamir challenges;   weight   batch weight
+      A, A1, B    proof commitments;   r1, s1, d1   proof scalars
+      V           value commitments (vector)
+    """
 
     # curve points
     Z = df25519.Z
@@ -765,29 +839,36 @@ def check_bp_plus(proofs):
 
     # Batch multiexponentiation is not optimized
     # Final multiscalar multiplication data
-    Gi_scalars = ScalarVector([Scalar(0)] * 128*16)
-    Hi_scalars = ScalarVector([Scalar(0)] * 128*16)
+    Gi_scalars = ScalarVector([Scalar(0)] * 128 * 16)
+    Hi_scalars = ScalarVector([Scalar(0)] * 128 * 16)
     scalars = ScalarVector([])
     points = PointVector([])
-
-    # Store auxiliary data
-    aux = []
 
     # Process each proof and add it to the batch
     for proof in proofs:
         if isinstance(proof, BulletproofPlus):
-            V, A, A1, B, r1, s1, d1, L, R = proof.V, proof.A,proof.A1,proof.B,proof.r1,proof.s1,proof.d1,proof.L,proof.R
+            V, A, A1, B, r1, s1, d1, L, R = (
+                proof.V,
+                proof.A,
+                proof.A1,
+                proof.B,
+                proof.r1,
+                proof.s1,
+                proof.d1,
+                proof.L,
+                proof.R,
+            )
         else:
             V, A, A1, B, r1, s1, d1, L, R = proof
 
         maxM = 16
         logN = 6
-        N = 1 << logN 
+        N = 1 << logN
 
         logM = len(L) - 6
         M = 1 << logM
         MN = M * N
-        
+
         if not len(L) == len(R):
             raise IndexError
 
@@ -801,9 +882,7 @@ def check_bp_plus(proofs):
 
         # Start transcript
         domain_separator_transcript = str("bulletproof_plus_transcript")
-        transcript = hash_to_point(
-            cn_fast_hash(domain_separator_transcript.encode("utf-8").hex())
-        )
+        transcript = hash_to_point(cn_fast_hash(domain_separator_transcript.encode("utf-8").hex()))
 
         # Reconstruct challenges
         strV = ""
@@ -853,9 +932,7 @@ def check_bp_plus(proofs):
             slots = 1 << (j + 1)
             for s in range(slots - 1, 0, -2):
                 challenges_cache[s] = challenges_cache[int(s / 2)] * challenges[j]
-                challenges_cache[s - 1] = (
-                    challenges_cache[int(s / 2)] * challenges_inv[j]
-                )
+                challenges_cache[s - 1] = challenges_cache[int(s / 2)] * challenges_inv[j]
 
         if e == Scalar(0):
             raise ArithmeticError("Bad verifier challenge!")
@@ -887,8 +964,7 @@ def check_bp_plus(proofs):
         # Add G_scalar and H_scalar
         sum_y = sum_of_scalar_powers(y, M * N)
         H_scalar += weight * (
-            r1 * y * s1
-            + e**2 * (y ** (M * N + 1) * z * one_MN**d + (z**2 - z) * sum_y)
+            r1 * y * s1 + e**2 * (y ** (M * N + 1) * z * one_MN**d + (z**2 - z) * sum_y)
         )
         G_scalar += weight * d1
         scalars.append(G_scalar)
@@ -902,23 +978,21 @@ def check_bp_plus(proofs):
         while temp_MN > 1:
             y_MN = y_MN * y_MN
             temp_MN /= 2
-        y_MN_1 = y_MN * y
 
         er1wy = e * r1 * weight
         minuse2wy = -(e**2 * weight * y_MN)
 
-
         for i in range(MN):
-            g_scalar = copy.copy(er1wy)
-            g_scalar = g_scalar * challenges_cache[i] + (e**2 * z * weight)
+            # Per-index scalars for the vector generators Gi/Hi (lowercase i suffix
+            # distinguishes these from G_scalar/H_scalar, the base generators G/H).
+            Gi_scalar = copy.copy(er1wy)
+            Gi_scalar = Gi_scalar * challenges_cache[i] + (e**2 * z * weight)
 
-            h_scalar = e * s1 * weight * challenges_cache[(~i) & (MN - 1)] - (
-                e**2 * z * weight
-            )
-            h_scalar += minuse2wy * d[i]
+            Hi_scalar = e * s1 * weight * challenges_cache[(~i) & (MN - 1)] - (e**2 * z * weight)
+            Hi_scalar += minuse2wy * d[i]
 
-            Gi_scalars[i] += g_scalar
-            Hi_scalars[i] += h_scalar
+            Gi_scalars[i] += Gi_scalar
+            Hi_scalars[i] += Hi_scalar
 
             er1wy = er1wy * y_inv
             minuse2wy = minuse2wy * y_inv
@@ -931,6 +1005,6 @@ def check_bp_plus(proofs):
         points.append(settings_df25519.Hi_plus_df[i])
 
     if df25519.multiexp_naive(scalars, points) == Z:
-        return True 
+        return True
 
-    return False 
+    return False

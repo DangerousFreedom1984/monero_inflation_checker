@@ -1,26 +1,28 @@
-# MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
 
-## Acknowledgments
-# This project incorporates [`monero-oxide`](https://github.com/monero-oxide/monero-oxide), licensed under the [MIT License](https://github.com/monero-oxide/monero-oxide/blob/main/monero-oxide/LICENSE).
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
 
-# Generalized Bulletproofs (GBP) – pure Python implementation.
-#
-# Translates:
-#   scalar_vector.rs, point_vector.rs, lincomb.rs, lib.rs,
-#   inner_product.rs, arithmetic_circuit_proof.rs
-#
-# All field and curve arithmetic is duck-typed: any field element F and curve
-# point G work as long as they implement the standard arithmetic operators.
+Generalized Bulletproofs (GBP) – pure Python implementation.
+
+Translates:
+  scalar_vector.rs, point_vector.rs, lincomb.rs, lib.rs,
+  inner_product.rs, arithmetic_circuit_proof.rs
+
+All field and curve arithmetic is duck-typed: any field element F and curve
+point G work as long as they implement the standard arithmetic operators.
+"""
 
 import sys, os
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 from multiexp import multiexp
 
-
 # ---------------------------------------------------------------------------
 # ScalarVector  (scalar_vector.rs)
 # ---------------------------------------------------------------------------
+
 
 class ScalarVector:
     """Thin list wrapper over field elements with Bulletproofs arithmetic."""
@@ -82,19 +84,22 @@ class ScalarVector:
 
     def __add__(self, other):
         if isinstance(other, ScalarVector):
-            assert len(self.v) == len(other.v)
+            if len(self.v) != len(other.v):
+                raise ValueError(f"ScalarVector length mismatch: {len(self.v)} vs {len(other.v)}")
             return ScalarVector([a + b for a, b in zip(self.v, other.v)])
         return ScalarVector([a + other for a in self.v])
 
     def __sub__(self, other):
         if isinstance(other, ScalarVector):
-            assert len(self.v) == len(other.v)
+            if len(self.v) != len(other.v):
+                raise ValueError(f"ScalarVector length mismatch: {len(self.v)} vs {len(other.v)}")
             return ScalarVector([a - b for a, b in zip(self.v, other.v)])
         return ScalarVector([a - other for a in self.v])
 
     def __mul__(self, other):
         if isinstance(other, ScalarVector):
-            assert len(self.v) == len(other.v)
+            if len(self.v) != len(other.v):
+                raise ValueError(f"ScalarVector length mismatch: {len(self.v)} vs {len(other.v)}")
             return ScalarVector([a * b for a, b in zip(self.v, other.v)])
         return ScalarVector([a * other for a in self.v])
 
@@ -163,6 +168,7 @@ class ScalarVector:
 # PointVector  (point_vector.rs)
 # ---------------------------------------------------------------------------
 
+
 class PointVector:
     """Thin list wrapper over curve points with Bulletproofs arithmetic."""
 
@@ -185,16 +191,19 @@ class PointVector:
 
     def split(self):
         """Split in half; panics if not even."""
-        assert len(self.v) % 2 == 0
+        if len(self.v) % 2 != 0:
+            raise ValueError(f"PointVector length {len(self.v)} is not even, cannot split")
         mid = len(self.v) // 2
         return PointVector(self.v[:mid]), PointVector(self.v[mid:])
 
     def add_vec(self, other):
-        assert len(self.v) == len(other.v)
+        if len(self.v) != len(other.v):
+            raise ValueError(f"PointVector length mismatch: {len(self.v)} vs {len(other.v)}")
         return PointVector([a + b for a, b in zip(self.v, other.v)])
 
     def sub_vec(self, other):
-        assert len(self.v) == len(other.v)
+        if len(self.v) != len(other.v):
+            raise ValueError(f"PointVector length mismatch: {len(self.v)} vs {len(other.v)}")
         return PointVector([a - b for a, b in zip(self.v, other.v)])
 
     def mul_vec(self, sv):
@@ -211,10 +220,11 @@ class PointVector:
 # LinComb  (lincomb.rs)
 # ---------------------------------------------------------------------------
 
+
 def _accumulate_vector(acc_sv, sparse_weights, weight):
     """acc_sv += sparse_weights * weight.  Returns highest index written."""
     hi = 0
-    for (i, coeff) in sparse_weights:
+    for i, coeff in sparse_weights:
         acc_sv[i] = acc_sv[i] + coeff * weight
         hi = max(hi, i)
     return hi
@@ -227,12 +237,12 @@ class LinComb:
         self.highest_a_index = None
         self.highest_c_index = None
         self.highest_v_index = None
-        self.WL  = []           # list of (index, field_elem)
-        self.WR  = []
-        self.WO  = []
-        self.WCG = []           # list of lists of (index, field_elem)
-        self.WV  = []
-        self.c   = None         # constant; set when term() first called
+        self.WL = []  # list of (index, field_elem)
+        self.WR = []
+        self.WO = []
+        self.WCG = []  # list of lists of (index, field_elem)
+        self.WV = []
+        self.c = None  # constant; set when term() first called
 
     def _reconcile(self, other):
         self.highest_a_index = _max_opt(self.highest_a_index, other.highest_a_index)
@@ -274,7 +284,7 @@ class LinComb:
         else:
             raise ValueError(f"unknown variable kind {kind!r}")
         if self.c is None:
-            self.c = scalar * type(scalar)(0)   # zero of the same type
+            self.c = scalar * type(scalar)(0)  # zero of the same type
         return self
 
     def constant(self, scalar):
@@ -285,11 +295,16 @@ class LinComb:
         res = LinComb()
         res._reconcile(self)
         res._reconcile(other)
-        res.WL  = self.WL  + other.WL
-        res.WR  = self.WR  + other.WR
-        res.WO  = self.WO  + other.WO
-        res.WCG = [list(a) + list(b) for a, b in zip(res.WCG,
-                   ([list(x) for x in self.WCG] + [[] for _ in range(len(other.WCG) - len(self.WCG))]))]
+        res.WL = self.WL + other.WL
+        res.WR = self.WR + other.WR
+        res.WO = self.WO + other.WO
+        res.WCG = [
+            list(a) + list(b)
+            for a, b in zip(
+                res.WCG,
+                ([list(x) for x in self.WCG] + [[] for _ in range(len(other.WCG) - len(self.WCG))]),
+            )
+        ]
         # Simpler: merge WCG
         res.WCG = []
         for i in range(max(len(self.WCG), len(other.WCG))):
@@ -297,7 +312,7 @@ class LinComb:
             b = other.WCG[i] if i < len(other.WCG) else []
             res.WCG.append(list(a) + list(b))
         res.WV = self.WV + other.WV
-        c_self  = self.c  if self.c  is not None else None
+        c_self = self.c if self.c is not None else None
         c_other = other.c if other.c is not None else None
         if c_self is None:
             res.c = c_other
@@ -312,12 +327,12 @@ class LinComb:
         neg.highest_a_index = other.highest_a_index
         neg.highest_c_index = other.highest_c_index
         neg.highest_v_index = other.highest_v_index
-        neg.WL  = [(i, -w) for i, w in other.WL]
-        neg.WR  = [(i, -w) for i, w in other.WR]
-        neg.WO  = [(i, -w) for i, w in other.WO]
+        neg.WL = [(i, -w) for i, w in other.WL]
+        neg.WR = [(i, -w) for i, w in other.WR]
+        neg.WO = [(i, -w) for i, w in other.WO]
         neg.WCG = [[(j, -w) for j, w in row] for row in other.WCG]
-        neg.WV  = [(i, -w) for i, w in other.WV]
-        neg.c   = (-other.c) if other.c is not None else None
+        neg.WV = [(i, -w) for i, w in other.WV]
+        neg.c = (-other.c) if other.c is not None else None
         return self + neg
 
     def __mul__(self, scalar):
@@ -325,12 +340,12 @@ class LinComb:
         res.highest_a_index = self.highest_a_index
         res.highest_c_index = self.highest_c_index
         res.highest_v_index = self.highest_v_index
-        res.WL  = [(i, w * scalar) for i, w in self.WL]
-        res.WR  = [(i, w * scalar) for i, w in self.WR]
-        res.WO  = [(i, w * scalar) for i, w in self.WO]
+        res.WL = [(i, w * scalar) for i, w in self.WL]
+        res.WR = [(i, w * scalar) for i, w in self.WR]
+        res.WO = [(i, w * scalar) for i, w in self.WO]
         res.WCG = [[(j, w * scalar) for j, w in row] for row in self.WCG]
-        res.WV  = [(i, w * scalar) for i, w in self.WV]
-        res.c   = self.c * scalar if self.c is not None else None
+        res.WV = [(i, w * scalar) for i, w in self.WV]
+        res.c = self.c * scalar if self.c is not None else None
         return res
 
     def __rmul__(self, scalar):
@@ -361,8 +376,10 @@ class LinComb:
 
 
 def _max_opt(a, b):
-    if a is None: return b
-    if b is None: return a
+    if a is None:
+        return b
+    if b is None:
+        return a
     return max(a, b)
 
 
@@ -370,23 +387,38 @@ def _max_opt(a, b):
 # Variable helper constructors
 # ---------------------------------------------------------------------------
 
-def aL(i): return ("aL", i)
-def aR(i): return ("aR", i)
-def aO(i): return ("aO", i)
-def CG(commitment, index): return ("CG", commitment, index)
-def V(i): return ("V", i)
+
+def aL(i):
+    return ("aL", i)
+
+
+def aR(i):
+    return ("aR", i)
+
+
+def aO(i):
+    return ("aO", i)
+
+
+def CG(commitment, index):
+    return ("CG", commitment, index)
+
+
+def V(i):
+    return ("V", i)
 
 
 # ---------------------------------------------------------------------------
 # Pedersen commitments
 # ---------------------------------------------------------------------------
 
+
 class PedersenCommitment:
     """Opening of a Pedersen commitment: value * g + mask * h."""
 
     def __init__(self, value, mask):
         self.value = value
-        self.mask  = mask
+        self.mask = mask
 
     def commit(self, g, h, identity):
         return multiexp([(self.value, g), (self.mask, h)], identity)
@@ -408,34 +440,50 @@ class PedersenVectorCommitment:
 # Generators / ProofGenerators / BatchVerifier  (lib.rs)
 # ---------------------------------------------------------------------------
 
+
 class ProofGenerators:
     """A slice of the full Generators set (reduced to a power of two)."""
 
     def __init__(self, g, h, g_bold, h_bold, identity):
-        self._g      = g
-        self._h      = h
+        self._g = g
+        self._h = h
         self._g_bold = list(g_bold)
         self._h_bold = list(h_bold)
-        self.identity = identity   # the identity point of this curve
+        self.identity = identity  # the identity point of this curve
 
-    def len(self): return len(self._g_bold)
-    def g(self):   return self._g
-    def h(self):   return self._h
-    def g_bold(self, i): return self._g_bold[i]
-    def h_bold(self, i): return self._h_bold[i]
-    def g_bold_slice(self): return self._g_bold
-    def h_bold_slice(self): return self._h_bold
+    def len(self):
+        return len(self._g_bold)
+
+    def g(self):
+        return self._g
+
+    def h(self):
+        return self._h
+
+    def g_bold(self, i):
+        return self._g_bold[i]
+
+    def h_bold(self, i):
+        return self._h_bold[i]
+
+    def g_bold_slice(self):
+        return self._g_bold
+
+    def h_bold_slice(self):
+        return self._h_bold
 
 
 class Generators:
     """Full generator set (g, h, g_bold, h_bold, h_sum)."""
 
     def __init__(self, g, h, g_bold, h_bold, identity):
-        assert len(g_bold) == len(h_bold)
+        if len(g_bold) != len(h_bold):
+            raise ValueError(f"g_bold/h_bold length mismatch: {len(g_bold)} vs {len(h_bold)}")
         n = len(g_bold)
-        assert n > 0 and (n & (n - 1)) == 0, "g_bold length must be a power of two"
-        self._g      = g
-        self._h      = h
+        if not (n > 0 and (n & (n - 1)) == 0):
+            raise ValueError(f"g_bold length {n} must be a power of two and > 0")
+        self._g = g
+        self._h = h
         self._g_bold = list(g_bold)
         self._h_bold = list(h_bold)
         self.identity = identity
@@ -451,10 +499,17 @@ class Generators:
                 nxt *= 2
         self._h_sum = h_sum
 
-    def g(self): return self._g
-    def h(self): return self._h
-    def g_bold_slice(self): return self._g_bold
-    def h_bold_slice(self): return self._h_bold
+    def g(self):
+        return self._g
+
+    def h(self):
+        return self._h
+
+    def g_bold_slice(self):
+        return self._g_bold
+
+    def h_bold_slice(self):
+        return self._h_bold
 
     @staticmethod
     def new_batch_verifier(n, field_cls):
@@ -472,8 +527,10 @@ class Generators:
         if n > len(self._g_bold):
             return None
         return ProofGenerators(
-            self._g, self._h,
-            self._g_bold[:n], self._h_bold[:n],
+            self._g,
+            self._h,
+            self._g_bold[:n],
+            self._h_bold[:n],
             self.identity,
         )
 
@@ -498,13 +555,13 @@ class BatchVerifier:
     """Accumulates scalar*point claims; verified in one multiexp."""
 
     def __init__(self, g_sc, h_sc, g_bold_scs, h_bold_scs, h_sum_scs, additional, field_cls):
-        self.g          = g_sc
-        self.h          = h_sc
-        self.g_bold     = list(g_bold_scs)
-        self.h_bold     = list(h_bold_scs)
-        self.h_sum      = list(h_sum_scs)
-        self.additional = list(additional)    # [(scalar, point)]
-        self.field_cls  = field_cls
+        self.g = g_sc
+        self.h = h_sc
+        self.g_bold = list(g_bold_scs)
+        self.h_bold = list(h_bold_scs)
+        self.h_sum = list(h_sum_scs)
+        self.additional = list(additional)  # [(scalar, point)]
+        self.field_cls = field_cls
 
     def _ensure_g_bold(self, n):
         z = self.field_cls(0)
@@ -526,6 +583,7 @@ class BatchVerifier:
 # Inner-Product Argument  (inner_product.rs)
 # ---------------------------------------------------------------------------
 
+
 def _challenge_products(challenges, field_cls):
     """Compute all products of challenge/challenge_inv combinations.
 
@@ -539,14 +597,14 @@ def _challenge_products(challenges, field_cls):
     products = [one] * n
 
     if challenges:
-        products[0] = challenges[0][1]   # x_inv
-        products[1] = challenges[0][0]   # x
+        products[0] = challenges[0][1]  # x_inv
+        products[1] = challenges[0][0]  # x
 
         for j in range(1, len(challenges)):
             x, x_inv = challenges[j]
             slots = (1 << (j + 1)) - 1
             while slots > 0:
-                products[slots]     = products[slots // 2] * x
+                products[slots] = products[slots // 2] * x
                 products[slots - 1] = products[slots // 2] * x_inv
                 slots -= 2
     return products
@@ -563,10 +621,10 @@ class IpStatement:
         P_point        : prover's P commitment (for prove mode)
         verifier_weight: random scalar (for verify mode)
         """
-        self.generators      = generators
-        self.h_bold_weights  = h_bold_weights
-        self.u               = u
-        self.P_point         = P_point
+        self.generators = generators
+        self.h_bold_weights = h_bold_weights
+        self.u = u
+        self.P_point = P_point
         self.verifier_weight = verifier_weight
 
     def prove(self, transcript, a, b, field_cls):
@@ -576,13 +634,14 @@ class IpStatement:
         a, b      : ScalarVector witnesses
         field_cls : field class for challenge generation
         """
-        gen  = self.generators
+        gen = self.generators
         u_pt = gen.g() * self.u.v
         iden = gen.identity
 
         g_bold = PointVector(list(gen.g_bold_slice()))
-        h_bold = PointVector([gen.h_bold(i) * self.h_bold_weights[i].v
-                               for i in range(len(self.h_bold_weights.v))])
+        h_bold = PointVector(
+            [gen.h_bold(i) * self.h_bold_weights[i].v for i in range(len(self.h_bold_weights.v))]
+        )
 
         a = a.clone()
         b = b.clone()
@@ -598,28 +657,28 @@ class IpStatement:
             cl = b2.inner_product(iter(a1.v))
             cr = a2.inner_product(iter(b1.v))
 
-            L_pairs = (list(zip(a1.v, g_bold2.v)) +
-                       list(zip(b2.v, h_bold1.v)) +
-                       [(cl, u_pt)])
-            R_pairs = (list(zip(a2.v, g_bold1.v)) +
-                       list(zip(b1.v, h_bold2.v)) +
-                       [(cr, u_pt)])
+            L_pairs = list(zip(a1.v, g_bold2.v)) + list(zip(b2.v, h_bold1.v)) + [(cl, u_pt)]
+            R_pairs = list(zip(a2.v, g_bold1.v)) + list(zip(b1.v, h_bold2.v)) + [(cr, u_pt)]
             L = multiexp(L_pairs, iden)
             R = multiexp(R_pairs, iden)
 
             transcript.push_point(L)
             transcript.push_point(R)
-            x     = transcript.challenge(field_cls)
+            x = transcript.challenge(field_cls)
             x_inv = x.inv()
 
-            g_bold = PointVector([
-                multiexp([(x_inv, g_bold1.v[i]), (x, g_bold2.v[i])], iden)
-                for i in range(len(g_bold1.v))
-            ])
-            h_bold = PointVector([
-                multiexp([(x, h_bold1.v[i]), (x_inv, h_bold2.v[i])], iden)
-                for i in range(len(h_bold1.v))
-            ])
+            g_bold = PointVector(
+                [
+                    multiexp([(x_inv, g_bold1.v[i]), (x, g_bold2.v[i])], iden)
+                    for i in range(len(g_bold1.v))
+                ]
+            )
+            h_bold = PointVector(
+                [
+                    multiexp([(x, h_bold1.v[i]), (x_inv, h_bold2.v[i])], iden)
+                    for i in range(len(h_bold1.v))
+                ]
+            )
             P = L * (x * x).v + P + R * (x_inv * x_inv).v
 
             a = a1 * x
@@ -643,7 +702,7 @@ class IpStatement:
         point_from_bytes : callable(bytes) → point (curve-specific deserialization)
         """
         gen = self.generators
-        n   = gen.len()
+        n = gen.len()
 
         verifier._ensure_g_bold(n)
         verifier._ensure_h_bold(n)
@@ -656,7 +715,7 @@ class IpStatement:
 
         L_pts = []
         R_pts = []
-        xs    = []
+        xs = []
         for _ in range(lr_len):
             L_pts.append(transcript.read_point(point_from_bytes))
             R_pts.append(transcript.read_point(point_from_bytes))
@@ -681,9 +740,10 @@ class IpStatement:
             verifier.g_bold[i] = verifier.g_bold[i] - weight * product_cache[i] * a
 
         for i in range(len(gen.h_bold_slice())):
-            verifier.h_bold[i] = (verifier.h_bold[i] -
-                                  weight * product_cache[len(product_cache) - 1 - i] *
-                                  b * self.h_bold_weights[i])
+            verifier.h_bold[i] = (
+                verifier.h_bold[i]
+                - weight * product_cache[len(product_cache) - 1 - i] * b * self.h_bold_weights[i]
+            )
 
         verifier.g = verifier.g - weight * c * self.u
 
@@ -691,6 +751,7 @@ class IpStatement:
 # ---------------------------------------------------------------------------
 # Arithmetic Circuit Proof  (arithmetic_circuit_proof.rs)
 # ---------------------------------------------------------------------------
+
 
 class ArithmeticCircuitWitness:
     """Witness for an arithmetic circuit statement.
@@ -702,7 +763,8 @@ class ArithmeticCircuitWitness:
     """
 
     def __init__(self, aL, aR, c, v):
-        assert len(aL.v) == len(aR.v)
+        if len(aL.v) != len(aR.v):
+            raise ValueError(f"aL/aR length mismatch: {len(aL.v)} vs {len(aR.v)}")
         if len(aL.v) == 0:
             # Pad to 1 if empty
             zero = c[0].g_values[0] * type(c[0].g_values[0])(0) if c and c[0].g_values else None
@@ -714,8 +776,8 @@ class ArithmeticCircuitWitness:
         self.aL = aL
         self.aR = aR
         self.aO = aO
-        self.c  = list(c)
-        self.v  = list(v)
+        self.c = list(c)
+        self.v = list(v)
 
 
 class ArithmeticCircuitStatement:
@@ -728,15 +790,22 @@ class ArithmeticCircuitStatement:
         C_commitments : list of points (vector commitment points)
         V_commitments : list of points (scalar commitment points)
         """
-        self.generators    = generators
-        self.constraints   = list(constraints)
-        self.C             = list(C_commitments)
-        self.V             = list(V_commitments)
+        self.generators = generators
+        self.constraints = list(constraints)
+        self.C = list(C_commitments)
+        self.V = list(V_commitments)
 
-    def n(self): return self.generators.len()
-    def q(self): return len(self.constraints)
-    def c(self): return len(self.C)
-    def m(self): return len(self.V)
+    def n(self):
+        return self.generators.len()
+
+    def q(self):
+        return len(self.constraints)
+
+    def c(self):
+        return len(self.C)
+
+    def m(self):
+        return len(self.V)
 
     # ---- yz challenge computation ----
 
@@ -767,46 +836,50 @@ class ArithmeticCircuitStatement:
         gen = self.generators
         iden = gen.identity
 
-        assert len(witness.aL.v) <= n
+        if len(witness.aL.v) > n:
+            raise ValueError(f"witness aL length {len(witness.aL.v)} exceeds generator count {n}")
 
         alpha = rng_fn()
-        beta  = rng_fn()
-        rho   = rng_fn()
+        beta = rng_fn()
+        rho = rng_fn()
 
         # AI = sum(aL[i]*g_bold[i]) + sum(aR[i]*h_bold[i]) + alpha*h
-        AI_pairs = ([(al, gen.g_bold(i)) for i, al in enumerate(witness.aL.v)] +
-                    [(ar, gen.h_bold(i)) for i, ar in enumerate(witness.aR.v)] +
-                    [(alpha, gen.h())])
+        AI_pairs = (
+            [(al, gen.g_bold(i)) for i, al in enumerate(witness.aL.v)]
+            + [(ar, gen.h_bold(i)) for i, ar in enumerate(witness.aR.v)]
+            + [(alpha, gen.h())]
+        )
         AI = multiexp(AI_pairs, iden)
 
         # AO = sum(aO[i]*g_bold[i]) + beta*h
-        AO_pairs = ([(ao, gen.g_bold(i)) for i, ao in enumerate(witness.aO.v)] +
-                    [(beta, gen.h())])
+        AO_pairs = [(ao, gen.g_bold(i)) for i, ao in enumerate(witness.aO.v)] + [(beta, gen.h())]
         AO = multiexp(AO_pairs, iden)
 
         # S = sum(sL[i]*g_bold[i]) + sum(sR[i]*h_bold[i]) + rho*h
         sL = ScalarVector([rng_fn() for _ in range(n)])
         sR = ScalarVector([rng_fn() for _ in range(n)])
-        S_pairs = ([(sl, gen.g_bold(i)) for i, sl in enumerate(sL.v)] +
-                   [(sr, gen.h_bold(i)) for i, sr in enumerate(sR.v)] +
-                   [(rho, gen.h())])
+        S_pairs = (
+            [(sl, gen.g_bold(i)) for i, sl in enumerate(sL.v)]
+            + [(sr, gen.h_bold(i)) for i, sr in enumerate(sR.v)]
+            + [(rho, gen.h())]
+        )
         S = multiexp(S_pairs, iden)
 
         transcript.push_point(AI)
         transcript.push_point(AO)
         transcript.push_point(S)
-        y  = transcript.challenge(field_cls)
+        y = transcript.challenge(field_cls)
         z1 = transcript.challenge(field_cls)
         y_inv, z = self._yz_challenges(y, z1, field_cls)
         y_pow = ScalarVector.powers(y, n)
 
-        ni  = 2 + 2 * (c // 2)
+        ni = 2 * c + 2  # n' = (2*c)+2 — must match verify() / Rust (was 2+2*(c//2))
         ilr = ni // 2
-        io  = ni
+        io = ni
         is_ = ni + 1
         jlr = ni // 2
-        jo  = 0
-        js  = ni + 1
+        jo = 0
+        js = ni + 1
 
         zero_sv = ScalarVector.zeros(n, sample=y)
         l = [zero_sv.clone() for _ in range(is_ + 1)]
@@ -867,13 +940,11 @@ class ArithmeticCircuitStatement:
                     cg_hi = max(cg_hi, _accumulate_vector(cg_weights, constraint.WCG[ci], zk))
             cg_weights.truncate(cg_hi + 1)
 
-            i = ci
-            if i >= ilr:
-                i += 1
-            j = ni - i
-
-            l[i] = ScalarVector(list(vc.g_values))
-            r[j] = cg_weights
+            # Match verify(): l[g_values] at j = ni-1-ci, r[cg_weights] at i = 1+ci
+            i = 1 + ci
+            j = ni - i  # = ni - 1 - ci
+            l[j] = ScalarVector(list(vc.g_values))
+            r[i] = cg_weights
 
         # t polynomial: t[i+j] += l[i] · r[j]
         t_len = 1 + 2 * (len(l) - 1)
@@ -882,14 +953,15 @@ class ArithmeticCircuitStatement:
             for j, rj in enumerate(r):
                 t[i + j] = t[i + j] + li.inner_product(iter(rj.v))
 
-        # tau masks
-        tau_before = [rng_fn() for _ in range(ni)]
-        tau_after  = [rng_fn() for _ in range(t_len - ni - 1)]
+        # tau masks. The consensus prover commits T only for t-indices [ni//2 .. ni-1]
+        # (T_before) and [ni+1 .. t_len-1] (T_after); the low coeffs t[0..ni//2-1] are zero
+        # for this circuit, and index ni (t_caret) is revealed as a scalar.
+        tau_before = [rng_fn() for _ in range(ni - ni // 2)]
+        tau_after = [rng_fn() for _ in range(t_len - ni - 1)]
 
-        # Commit to t (all except t[ni])
-        for ti, tau in zip(t.v[:ni], tau_before):
+        for ti, tau in zip(t.v[ni // 2 : ni], tau_before):
             transcript.push_point(multiexp([(ti, gen.g()), (tau, gen.h())], iden))
-        for ti, tau in zip(t.v[ni + 1:], tau_after):
+        for ti, tau in zip(t.v[ni + 1 :], tau_after):
             transcript.push_point(multiexp([(ti, gen.g()), (tau, gen.h())], iden))
 
         x_pow = ScalarVector.powers(transcript.challenge(field_cls), t_len)
@@ -914,7 +986,9 @@ class ArithmeticCircuitStatement:
         v_masks_ip = V_weights.inner_product(v.mask for v in witness.v)
         if v_masks_ip is None:
             v_masks_ip = type(y)(0)
-        tau_poly = (tau_before + [v_masks_ip] + tau_after)
+        # tau polynomial: zeros for the uncommitted low coeffs [0..ni//2-1], then
+        # tau_before at [ni//2..ni-1], v_masks at [ni], tau_after at [ni+1..].
+        tau_poly = ([type(y)(0)] * (ni // 2)) + tau_before + [v_masks_ip] + tau_after
         tau_x = type(y)(0)
         for i, coeff in enumerate(tau_poly):
             tau_x = tau_x + coeff * x_pow[i]
@@ -922,10 +996,8 @@ class ArithmeticCircuitStatement:
         # u = alpha*x[ilr] + beta*x[io] + rho*x[is] + sum(c.mask * x[i'])
         u = alpha * x_pow[ilr] + beta * x_pow[io] + rho * x_pow[is_]
         for ci, vc in enumerate(witness.c):
-            i = ci
-            if i >= ni // 2:
-                i += 1
-            u = u + x_pow[i] * vc.mask
+            j = ni - 1 - ci  # vc g_values live at l-index j (matches verify)
+            u = u + x_pow[j] * vc.mask
 
         transcript.push_scalar(tau_x)
         transcript.push_scalar(u)
@@ -933,13 +1005,14 @@ class ArithmeticCircuitStatement:
         ip_x = transcript.challenge(field_cls)
 
         # P = sum(l[i]*g_bold[i]) + sum(y_inv[i]*r[i]*h_bold[i]) + ip_x*t_caret*g
-        P_pairs = ([(l_eval[i], gen.g_bold(i)) for i in range(len(l_eval.v))] +
-                   [(y_inv[i] * r_eval[i], gen.h_bold(i)) for i in range(len(r_eval.v))] +
-                   [(ip_x * t_caret, gen.g())])
+        P_pairs = (
+            [(l_eval[i], gen.g_bold(i)) for i in range(len(l_eval.v))]
+            + [(y_inv[i] * r_eval[i], gen.h_bold(i)) for i in range(len(r_eval.v))]
+            + [(ip_x * t_caret, gen.g())]
+        )
         P_pt = multiexp(P_pairs, iden)
 
-        IpStatement(gen, y_inv, ip_x, P_point=P_pt).prove(
-            transcript, l_eval, r_eval, field_cls)
+        IpStatement(gen, y_inv, ip_x, P_point=P_pt).prove(transcript, l_eval, r_eval, field_cls)
 
     # ---- verify ----
 
@@ -956,13 +1029,13 @@ class ArithmeticCircuitStatement:
         c = self.c()
         gen = self.generators
 
-        ni  = 2 + 2 * (c // 2)
+        ni = 2 * c + 2  # Rust: n' = (2*c) + 2 (arithmetic_circuit_proof.rs:371)
         ilr = ni // 2
-        io  = ni
+        io = ni
         is_ = ni + 1
         jlr = ni // 2
 
-        l_r_len  = 1 + ni + 1
+        l_r_len = 1 + ni + 1
         t_poly_len = 2 * l_r_len - 1
 
         verifier._ensure_g_bold(n)
@@ -973,8 +1046,8 @@ class ArithmeticCircuitStatement:
 
         AI = read_pt()
         AO = read_pt()
-        S  = read_pt()
-        y  = transcript.challenge(field_cls)
+        S = read_pt()
+        y = transcript.challenge(field_cls)
         z1 = transcript.challenge(field_cls)
         y_inv, z = self._yz_challenges(y, z1, field_cls)
 
@@ -990,36 +1063,39 @@ class ArithmeticCircuitStatement:
 
         delta = r_weights.inner_product(iter(l_weights.v))
 
-        T_before = [read_pt() for _ in range(ni)]
-        T_after  = [read_pt() for _ in range(t_poly_len - ni - 1)]
+        # Rust prover only writes T[ni//2..ni-1] (skips 0..ni//2-1, those l-coeffs are zero)
+        T_before = [read_pt() for _ in range(ni - ni // 2)]
+        T_after = [read_pt() for _ in range(t_poly_len - ni - 1)]
         x_pow = ScalarVector.powers(transcript.challenge(field_cls), t_poly_len)
 
-        tau_x  = transcript.read_scalar(field_cls)
-        u      = transcript.read_scalar(field_cls)
+        tau_x = transcript.read_scalar(field_cls)
+        u = transcript.read_scalar(field_cls)
         t_caret = transcript.read_scalar(field_cls)
 
         # First verification equation: tau_x*h + t_caret*g == rhs
         w1 = rng_fn()
         verifier.g = verifier.g + t_caret * w1
-        verifier.h = verifier.h + tau_x  * w1
+        verifier.h = verifier.h + tau_x * w1
 
         V_weights = ScalarVector.zeros(len(self.V), sample=y)
         for constraint, zk in zip(self.constraints, z.v):
             _accumulate_vector(V_weights, constraint.WV, -zk)
         V_weights = V_weights * x_pow[ni]
 
-        z_c_sum = z.inner_product(iter(
-            constraint.c if constraint.c is not None else type(y)(0)
-            for constraint in self.constraints
-        ))
+        z_c_sum = z.inner_product(
+            iter(
+                constraint.c if constraint.c is not None else type(y)(0)
+                for constraint in self.constraints
+            )
+        )
         if z_c_sum is None:
-            z_c_sum = type(y)(0)   # empty constraints → zero
+            z_c_sum = type(y)(0)  # empty constraints → zero
         verifier.g = verifier.g - w1 * x_pow[ni] * (delta - z_c_sum)
 
         for Vw, V_pt in zip(V_weights.v, self.V):
             verifier.additional.append((-w1 * Vw, V_pt))
         for i, T in enumerate(T_before):
-            verifier.additional.append((-w1 * x_pow[i], T))
+            verifier.additional.append((-w1 * x_pow[ni // 2 + i], T))
         for i, T in enumerate(T_after):
             verifier.additional.append((-w1 * x_pow[ni + 1 + i], T))
 
@@ -1028,7 +1104,7 @@ class ArithmeticCircuitStatement:
         xw = x_pow * w2
 
         verifier.additional.append((xw[ilr], AI))
-        verifier.additional.append((xw[io],  AO))
+        verifier.additional.append((xw[io], AO))
         verifier.additional.append((xw[is_], S))
 
         log2_n = 0
@@ -1048,14 +1124,14 @@ class ArithmeticCircuitStatement:
                 if ci < len(constraint.WCG):
                     _accumulate_vector(cg, constraint.WCG[ci], zk)
 
-            i = ci
-            C_pt = self.C[ci]
-            WCG  = cg
-            if i >= ni // 2:
-                i += 1
+            # Rust: l[j=ni-1-ci] = g_values, r[i=1+ci] = cg_weights
+            # Verifier: C gets x^j (l-side), h_bold gets WCG * x^i (r-side)
+            i = 1 + ci
             j = ni - i
-            verifier.additional.append((xw[i], C_pt))
-            h_bold_scalars = h_bold_scalars + WCG * xw[j]
+            C_pt = self.C[ci]
+            WCG = cg
+            verifier.additional.append((xw[j], C_pt))
+            h_bold_scalars = h_bold_scalars + WCG * xw[i]
 
         h_bold_scalars = h_bold_scalars * y_inv
         for i, sc in enumerate(h_bold_scalars.v):
@@ -1067,12 +1143,14 @@ class ArithmeticCircuitStatement:
         verifier.g = verifier.g + w2 * ip_x * t_caret
 
         IpStatement(gen, y_inv, ip_x, verifier_weight=w2).verify(
-            verifier, transcript, field_cls, point_from_bytes)
+            verifier, transcript, field_cls, point_from_bytes
+        )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _next_pow2(n):
     if n <= 1:

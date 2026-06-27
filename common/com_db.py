@@ -32,21 +32,25 @@ def get_block(params_block):
     try:
         resp_json = json.loads(response.json()["result"]["json"])
         return resp_json
-    
-    except:
-        print("Next height to verify: " + str(params_block))
+
+    except Exception:
+        settings_df25519.logger_precheck.error(
+            "could not get block; next height to verify: %s", params_block
+        )
         raise
 
-        # if response.status_code == 200:
-        #     return 0
 
-
-
-
-def get_members_and_masks(amount_and_index_list: List[Tuple[int, int]]) -> Tuple[List[df25519.Point], List[df25519.Point]]:
+def get_members_and_masks(
+    amount_and_index_list: List[Tuple[int, int]],
+) -> Tuple[List[df25519.Point], List[df25519.Point]]:
     url = settings_df25519.url_str + "get_outs"
     headers = {"Content-Type": "application/json"}
-    rpc_input = {"outputs": [{"amount": amount_and_index[0], "index": amount_and_index[1]} for amount_and_index in amount_and_index_list]}
+    rpc_input = {
+        "outputs": [
+            {"amount": amount_and_index[0], "index": amount_and_index[1]}
+            for amount_and_index in amount_and_index_list
+        ]
+    }
     rpc_input.update({"jsonrpc": "2.0", "id": "0"})
 
     # execute the rpc request
@@ -70,11 +74,12 @@ def get_tx(txs, index):
     try:
         resp_json = json.loads(response.json()["txs"][index]["as_json"])
         resp_hex = response.json()["txs"][index]["as_hex"]
-    except:
-        print("Error: Could not fetch transaction from daemon")
+    except Exception:
+        settings_df25519.logger_precheck.error("could not fetch transaction %s from daemon", index)
         raise
 
     return resp_json, resp_hex
+
 
 def get_coinbase_sum(params):
     url = settings_df25519.url_str + "json_rpc"
@@ -88,9 +93,9 @@ def get_coinbase_sum(params):
     try:
         resp_json = response.json()["result"]["emission_amount"]
         return resp_json
-    
-    except:
-        print("Failed acquiring coinbase sum")
-        print(response.json())
-        raise
 
+    except Exception:
+        settings_df25519.logger_precheck.error(
+            "failed acquiring coinbase sum; daemon response: %s", response.json()
+        )
+        raise

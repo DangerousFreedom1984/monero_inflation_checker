@@ -1,28 +1,26 @@
-"""
+"""Verification of CLSAG (RingCT type 5-6) ring signatures and range proofs.
+
 This work, "MIC - Monero Inflation Checker", is a derivative of:
     "Mininero" by ShenNoether (https://github.com/monero-project/mininero).
-    "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
+    "dumb25519" by SarangNoether
+        (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
-import com_db
+
 import misc_func
-import json
 import df25519
 from df25519 import (
     Scalar,
     Point,
-    PointVector,
-    ScalarVector,
     hash_to_point,
     hash_to_scalar,
     random_scalar,
 )
 import copy
-import multiprocessing
 import check_rangeproofs
 from concurrent.futures import as_completed, ProcessPoolExecutor
-import time
 import settings_df25519
+
 
 def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
@@ -51,13 +49,12 @@ def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, det
                     )
                 )
 
-        except:
-            print(
-                "Verify block_height: "
-                + str(h)
-                + " tx : "
-                + str(txs[i_tx])
-                + " ring signature failed"
+        except Exception as exc:
+            settings_df25519.logger_inflation.warning(
+                "block_height %s tx %s: CLSAG ring signature check raised: %r",
+                h,
+                txs[i_tx],
+                exc,
             )
 
     str_inp = []
@@ -69,13 +66,12 @@ def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, det
         try:
             with ProcessPoolExecutor() as exe:
                 x.append(exe.submit(check_rangeproofs.check_sig_bp1, resp_json))
-        except:
-            print(
-                "Verify block_height: "
-                + str(h)
-                + " tx : "
-                + str(txs[i_tx])
-                + " Bulletproofs failed"
+        except Exception as exc:
+            settings_df25519.logger_inflation.warning(
+                "block_height %s tx %s: Bulletproof check raised: %r",
+                h,
+                txs[i_tx],
+                exc,
             )
 
     str_out = []
@@ -84,25 +80,24 @@ def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, det
 
     try:
         str_commits = check_rangeproofs.check_commitments_bp1(resp_json)
-    except:
-        print(
-            "Verify block_height: "
-            + str(h)
-            + " tx : "
-            + str(txs[i_tx])
-            + " commitments check failed"
+    except Exception as exc:
+        settings_df25519.logger_inflation.warning(
+            "block_height %s tx %s: commitments check raised: %r",
+            h,
+            txs[i_tx],
+            exc,
         )
 
     return str_ki, str_inp, str_out, str_commits
-#--------------------------------------------------------------------------------------------
-def ring_sig_correct_bp_plus(
-    h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details
-):
+
+
+# --------------------------------------------------------------------------------------------
+def ring_sig_correct_bp_plus(h, resp_json, resp_hex, txs, i_tx, inputs, outputs, details):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = get_tx_hash_clsag_bp_plus(resp_json, resp_hex)
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
 
-    str_ki, str_inp, str_out, str_commits = "Passed!","Passed!","Passed!","Passed!"
+    str_ki, str_inp, str_out, str_commits = "Passed!", "Passed!", "Passed!", "Passed!"
 
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
@@ -110,34 +105,24 @@ def ring_sig_correct_bp_plus(
             str_ki = "Verification of key_image: " + str(Iv) + " failed."
             settings_df25519.logger_inflation.info(str_inp)
 
-    # Check ring-signatures 
+    # Check ring-signatures
     for sig_ind in range(inputs):
-        if not (check_sig_clsag_bp1(
-                    resp_json,
-                    sig_ind,
-                    inputs,
-                    rows,
-                    pubs,
-                    masks,
-                    message
-                )):
+        if not (check_sig_clsag_bp1(resp_json, sig_ind, inputs, rows, pubs, masks, message)):
 
-            str_inp = ("Verify block_height: "
-            + str(h)
-            + " tx : "
-            + str(txs[i_tx])
-            + " ring signature failed")
+            str_inp = (
+                "Verify block_height: "
+                + str(h)
+                + " tx : "
+                + str(txs[i_tx])
+                + " ring signature failed"
+            )
             settings_df25519.logger_inflation.info(str_inp)
             # raise Exception("ring_signature_failure")
 
     # Check rangeproofs
     if not check_rangeproofs.check_sig_bp_plus(resp_json):
         str_out = (
-            "Verify block_height: "
-            + str(h)
-            + " tx : "
-            + str(txs[i_tx])
-            + " Bulletproofs failed"
+            "Verify block_height: " + str(h) + " tx : " + str(txs[i_tx]) + " Bulletproofs failed"
         )
         settings_df25519.logger_inflation.info(str_out)
 
@@ -152,10 +137,10 @@ def ring_sig_correct_bp_plus(
         settings_df25519.logger_inflation.info(str_commits)
 
     return str_ki, str_inp, str_out, str_commits
-#--------------------------------------------------------------------------------------------
-def check_sig_clsag_bp1(
-    resp_json, sig_ind, inputs, rows, pubs, masks, message 
-):
+
+
+# --------------------------------------------------------------------------------------------
+def check_sig_clsag_bp1(resp_json, sig_ind, inputs, rows, pubs, masks, message):
     pubs_current = pubs[sig_ind]
     masks_current = masks[sig_ind]
 
@@ -166,12 +151,11 @@ def check_sig_clsag_bp1(
     D = Point(resp_json["rctsig_prunable"]["CLSAGs"][sig_ind]["D"])
     I = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
-    return check_CLSAG(
-        message, s_scalar, c1, D, I, pubs_current, masks_current, C_offset 
-    )
+    return check_clsag(message, s_scalar, c1, D, I, pubs_current, masks_current, C_offset)
 
-#--------------------------------------------------------------------------------------------
-def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
+
+# --------------------------------------------------------------------------------------------
+def generate_clsag(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
     inv8 = Scalar(8).invert()
     n = len(P)  # ring size
 
@@ -209,12 +193,8 @@ def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
     strC_nonzero = "".join([str(one_C) for one_C in C_nonzero])
 
     # Now generate the signature
-    mu_P = hash_to_scalar(
-        str_agg0 + strP + strC_nonzero + str(I) + str(D) + str(C_offset)
-    )
-    mu_C = hash_to_scalar(
-        str_agg1 + strP + strC_nonzero + str(I) + str(D) + str(C_offset)
-    )
+    mu_P = hash_to_scalar(str_agg0 + strP + strC_nonzero + str(I) + str(D) + str(C_offset))
+    mu_C = hash_to_scalar(str_agg1 + strP + strC_nonzero + str(I) + str(D) + str(C_offset))
     s = [None] * n
 
     alpha = random_scalar()
@@ -251,24 +231,30 @@ def generate_CLSAG(msg, p, P, z, C_offset, C, C_nonzero, Seed=None):
     s[l] = alpha - c * (p * mu_P + mu_C * z)
 
     return s, c1, D
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 class CLSAG:
     def __init__(self, msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
         self.msg = msg
         self.s = s
-        self.c1 = c1 
+        self.c1 = c1
         self.D_aux = D_aux
-        self.I = I 
+        self.I = I
         self.P = P
-        self.C_nonzero = C_nonzero 
+        self.C_nonzero = C_nonzero
         self.C_offset = C_offset
-#--------------------------------------------------------------------------------------------
-def check_CLSAGs(clsags):
+
+
+# --------------------------------------------------------------------------------------------
+def check_clsags(clsags):
     for c in clsags:
-        check_CLSAG(c.msg, c.s, c.c1, c.D_aux, c.I, c.P, c.C_nonzero, c.C_offset)
+        check_clsag(c.msg, c.s, c.c1, c.D_aux, c.I, c.P, c.C_nonzero, c.C_offset)
     return True
-#--------------------------------------------------------------------------------------------
-def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
+
+
+# --------------------------------------------------------------------------------------------
+def check_clsag(msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
 
     domain0 = "CLSAG_agg_0"
     domain1 = "CLSAG_agg_1"
@@ -292,12 +278,8 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
     strP = "".join([str(one_P) for one_P in P])
     strC_nonzero = "".join([str(one_C) for one_C in C_nonzero])
 
-    mu_P = hash_to_scalar(
-        str_agg0 + strP + strC_nonzero + str(I) + str(D) + str(C_offset)
-    )
-    mu_C = hash_to_scalar(
-        str_agg1 + strP + strC_nonzero + str(I) + str(D) + str(C_offset)
-    )
+    mu_P = hash_to_scalar(str_agg0 + strP + strC_nonzero + str(I) + str(D) + str(C_offset))
+    mu_C = hash_to_scalar(str_agg1 + strP + strC_nonzero + str(I) + str(D) + str(C_offset))
 
     c = copy.copy(c1)
 
@@ -308,8 +290,8 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
         cp = c * mu_P
         cc = c * mu_C
 
-        L = df25519.G.scalar_mult_base(s[i]) + cp * P[i] + cc*(C_nonzero[i] - C_offset)
-        R = s[i] * hash_to_point(str(P[i])) + cp * I + Scalar(8) * cc * D 
+        L = df25519.G.scalar_mult_base(s[i]) + cp * P[i] + cc * (C_nonzero[i] - C_offset)
+        R = s[i] * hash_to_point(str(P[i])) + cp * I + Scalar(8) * cc * D
 
         str_hash = str_round + strP + strC_nonzero + str(C_offset) + msg
         str_hash += str(L) + str(R)
@@ -321,7 +303,9 @@ def check_CLSAG(msg, s, c1, D_aux, I, P, C_nonzero, C_offset):
         return True
 
     return False
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def get_tx_hash_clsag(resp_json, resp_hex):
     extra_hex = "".join([format(value, "02x") for value in resp_json["extra"]])
 
@@ -348,7 +332,9 @@ def get_tx_hash_clsag(resp_json, resp_hex):
     ph3_hash = df25519.cn_fast_hash(ph3)
 
     return df25519.cn_fast_hash(ph1_hash + ph2_hash + ph3_hash)
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def get_tx_hash_clsag_bp_plus(resp_json, resp_hex):
     extra_hex = "".join([format(value, "02x") for value in resp_json["extra"]])
 

@@ -1,10 +1,11 @@
-# MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
 
-## Acknowledgments
-# This project incorporates [`monero-oxide`](https://github.com/monero-oxide/monero-oxide), licensed under the [MIT License](https://github.com/monero-oxide/monero-oxide/blob/main/monero-oxide/LICENSE).
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
 
-# Fast multiexp over Selene / Helios via C++ OpenSSL bindings.
-# Falls back to pure-Python Jacobian arithmetic if bindings are unavailable.
+Fast multiexp over Selene / Helios via C++ OpenSSL bindings.
+Falls back to pure-Python Jacobian arithmetic if bindings are unavailable.
+"""
 
 import sys
 import os
@@ -13,23 +14,26 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 try:
     import helioselene_bindings as _hb
+
     _HAVE_BINDINGS = True
 except ImportError:
     _HAVE_BINDINGS = False
 
 from curve import (
     WPoint,
-    HeliosField, HelioseleneField,
-    HELIOS_B, SELENE_B,
+    HeliosField,
+    SeleneField,
+    HELIOS_B,
+    SELENE_B,
 )
-
 
 # ---------------------------------------------------------------------------
 # WPoint ↔ binding conversion helpers
 # ---------------------------------------------------------------------------
 
+
 def _wp_to_selene_binding(pt: WPoint):
-    """WPoint (Selene, base field = HelioseleneField) → hb.SelenePoint."""
+    """WPoint (Selene, base field = SeleneField) → hb.SelenePoint."""
     bp = _hb.SelenePoint()
     bp.set_xy(f"{pt.x.v:064x}", f"{pt.y.v:064x}")
     return bp
@@ -46,11 +50,11 @@ def _selene_binding_to_wp(bp) -> WPoint:
     """hb.SelenePoint → WPoint."""
     x_hex = bp.x()
     y_hex = bp.y()
-    if x_hex.startswith("<"):          # infinity
-        return WPoint.identity(HelioseleneField, SELENE_B)
-    x = HelioseleneField(int(x_hex, 16))
-    y = HelioseleneField(int(y_hex, 16))
-    return WPoint(HelioseleneField, SELENE_B, x, y)
+    if x_hex.startswith("<"):  # infinity
+        return WPoint.identity(SeleneField, SELENE_B)
+    x = SeleneField(int(x_hex, 16))
+    y = SeleneField(int(y_hex, 16))
+    return WPoint(SeleneField, SELENE_B, x, y)
 
 
 def _helios_binding_to_wp(bp) -> WPoint:
@@ -67,6 +71,7 @@ def _helios_binding_to_wp(bp) -> WPoint:
 # ---------------------------------------------------------------------------
 # Fast multiexp using bindings
 # ---------------------------------------------------------------------------
+
 
 def _scalar_int(s) -> int:
     return s.v if hasattr(s, "v") else int(s)
@@ -126,6 +131,7 @@ def multiexp_helios(pairs, identity: WPoint) -> WPoint:
 # Pure-Python fallback
 # ---------------------------------------------------------------------------
 
+
 def _multiexp_pure(pairs, identity: WPoint) -> WPoint:
     result = None
     for scalar, pt in pairs:
@@ -141,12 +147,13 @@ def _multiexp_pure(pairs, identity: WPoint) -> WPoint:
 # Curve-agnostic wrapper (detects field_cls from the first non-identity point)
 # ---------------------------------------------------------------------------
 
+
 def multiexp(pairs, identity: WPoint) -> WPoint:
     """Dispatch to multiexp_selene or multiexp_helios based on point type."""
     pairs = list(pairs)
     for _, pt in pairs:
         if not pt.is_identity():
-            if pt.field_cls is HelioseleneField:
+            if pt.field_cls is SeleneField:
                 return multiexp_selene(pairs, identity)
             else:
                 return multiexp_helios(pairs, identity)

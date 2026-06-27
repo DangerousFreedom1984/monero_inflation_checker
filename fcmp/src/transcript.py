@@ -1,22 +1,23 @@
-# MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
 
-## Acknowledgments
-# This project incorporates [`monero-oxide`](https://github.com/monero-oxide/monero-oxide), licensed under the [MIT License](https://github.com/monero-oxide/monero-oxide/blob/main/monero-oxide/LICENSE).
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
 
-# GBP transcript — exact translation of generalized-bulletproofs/src/transcript.rs
-#
-# Blake2b-512 accumulates all inputs; challenge() clones the state, appends
-# the CHALLENGE tag, and calls from_uniform_bytes on the 64-byte digest.
-#
-# Separate from the outer FCMP Blake2b-32 context hash (Fcmp::transcript()).
+GBP transcript — exact translation of generalized-bulletproofs/src/transcript.rs
+
+Blake2b-512 accumulates all inputs; challenge() clones the state, appends
+the CHALLENGE tag, and calls from_uniform_bytes on the 64-byte digest.
+
+Separate from the outer FCMP Blake2b-32 context hash (Fcmp::transcript()).
+"""
 
 import hashlib
 import copy
 
 from curve import point_to_bytes
 
-SCALAR    = 0
-POINT     = 1
+SCALAR = 0
+POINT = 1
 CHALLENGE = 2
 
 
@@ -24,19 +25,20 @@ class ProverTranscript:
     """Mirrors generalized_bulletproofs::transcript::Transcript."""
 
     def __init__(self, context: bytes):
-        assert len(context) == 32
+        if len(context) != 32:
+            raise ValueError(f"transcript context must be 32 bytes, got {len(context)}")
         self._digest = hashlib.blake2b(digest_size=64)
         self._digest.update(context)
         self._buf = bytearray()
 
     def push_scalar(self, field_element) -> None:
-        b = field_element.to_bytes()          # 32 bytes LE
+        b = field_element.to_bytes()  # 32 bytes LE
         self._digest.update(bytes([SCALAR]))
         self._digest.update(b)
         self._buf.extend(b)
 
     def push_point(self, point) -> None:
-        b = point_to_bytes(point)             # 32 bytes compressed
+        b = point_to_bytes(point)  # 32 bytes compressed
         self._digest.update(bytes([POINT]))
         self._digest.update(b)
         self._buf.extend(b)
@@ -60,7 +62,7 @@ class ProverTranscript:
         Each call advances the running digest, so consecutive calls produce different values.
         """
         self._digest.update(bytes([CHALLENGE]))
-        h = self._digest.copy().digest()      # 64 bytes
+        h = self._digest.copy().digest()  # 64 bytes
         res = field_cls.from_uniform_bytes(h)
         if res.is_zero():
             raise RuntimeError("zero challenge (negligible probability)")
@@ -78,14 +80,15 @@ class VerifierTranscript:
     """Mirrors generalized_bulletproofs::transcript::VerifierTranscript."""
 
     def __init__(self, context: bytes, proof: bytes):
-        assert len(context) == 32
+        if len(context) != 32:
+            raise ValueError(f"transcript context must be 32 bytes, got {len(context)}")
         self._digest = hashlib.blake2b(digest_size=64)
         self._digest.update(context)
         self._proof = bytearray(proof)
         self._pos = 0
 
     def _read_bytes(self, n: int) -> bytes:
-        chunk = bytes(self._proof[self._pos: self._pos + n])
+        chunk = bytes(self._proof[self._pos : self._pos + n])
         if len(chunk) < n:
             raise EOFError("not enough bytes in proof")
         self._pos += n
@@ -128,8 +131,12 @@ class VerifierTranscript:
         self._digest.update(bytes([CHALLENGE]))
         return self._digest.copy().digest()
 
+    def is_exhausted(self) -> bool:
+        """Return True if all proof bytes have been consumed."""
+        return self._pos == len(self._proof)
+
     def complete(self) -> bytes:
-        return bytes(self._proof[self._pos:])
+        return bytes(self._proof[self._pos :])
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +144,7 @@ class VerifierTranscript:
 # Uses Blake2b-32, NOT Blake2b-512, and produces a 32-byte context consumed
 # by ProverTranscript / VerifierTranscript.
 # ---------------------------------------------------------------------------
+
 
 def fcmp_transcript_context(tree_root: bytes, inputs, root_blind_R: bytes) -> bytes:
     """Compute the 32-byte context fed into the GBP transcript.
@@ -152,7 +160,7 @@ def fcmp_transcript_context(tree_root: bytes, inputs, root_blind_R: bytes) -> by
     d = hashlib.blake2b(digest_size=32)
     d.update(tree_root)
     for inp in inputs:
-        d.update(inp["O"])   # output key
-        d.update(inp["I"])   # input key
+        d.update(inp["O"])  # output key
+        d.update(inp["I"])  # input key
     d.update(root_blind_R)
     return d.digest()

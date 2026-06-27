@@ -4,6 +4,7 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
     "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
+
 import df25519
 from df25519 import Scalar, Point, PointVector
 import com_db
@@ -14,9 +15,7 @@ from typing import Dict, List, Tuple
 
 def scalar_matrix(cols, rows, ind):
     if ind != 0:
-        return [
-            [[Scalar(0) for _ in range(ind)] for _ in range(rows)] for _ in range(cols)
-        ]
+        return [[[Scalar(0) for _ in range(ind)] for _ in range(rows)] for _ in range(cols)]
     else:
         if rows != 0:
             return [[Scalar(0) for _ in range(rows)] for _ in range(cols)]
@@ -26,9 +25,7 @@ def scalar_matrix(cols, rows, ind):
 
 def point_matrix(cols, rows, ind):
     if ind != 0:
-        return [
-            [[Scalar(0) for _ in range(ind)] for _ in range(rows)] for _ in range(cols)
-        ]
+        return [[[Scalar(0) for _ in range(ind)] for _ in range(rows)] for _ in range(cols)]
     else:
         if rows != 0:
             return [[Scalar(0) for _ in range(rows)] for _ in range(cols)]
@@ -59,23 +56,28 @@ def s_to_scalar(ss, rows):
     return s_scalar
 
 
-def get_members_and_masks_in_rings(resp_json: Dict) -> Tuple[List[List[df25519.Point]], List[List[df25519.Point]]]:
-    members_all, masks_all = com_db.get_members_and_masks([
-        (int(vin["key"]["amount"]), int(index))
-        for vin in resp_json["vin"]
-        for index in np.cumsum(vin["key"]["key_offsets"])
-    ])
+def get_members_and_masks_in_rings(
+    resp_json: Dict,
+) -> Tuple[List[List[df25519.Point]], List[List[df25519.Point]]]:
+    members_all, masks_all = com_db.get_members_and_masks(
+        [
+            (int(vin["key"]["amount"]), int(index))
+            for vin in resp_json["vin"]
+            for index in np.cumsum(vin["key"]["key_offsets"])
+        ]
+    )
 
     members = []
     masks = []
     index = 0
     for vin in resp_json["vin"]:
         length = len(vin["key"]["key_offsets"])
-        members.append(members_all[index:index + length])
-        masks.append(masks_all[index:index + length])
+        members.append(members_all[index : index + length])
+        masks.append(masks_all[index : index + length])
         index += length
 
     return members, masks
+
 
 def get_pseudo_outs(resp_json, pseudo_index=0):
     if "pseudoOuts" in resp_json["rct_signatures"]:
@@ -95,4 +97,3 @@ def get_pseudo_outs_bp1(resp_json, pseudo_index=0):
 
 def verify_ki(ki):
     return df25519.verify_subgroup(ki)
-    

@@ -1,13 +1,14 @@
-# MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
 
-## Acknowledgments
-# This project incorporates [`monero-oxide`](https://github.com/monero-oxide/monero-oxide), licensed under the [MIT License](https://github.com/monero-oxide/monero-oxide/blob/main/monero-oxide/LICENSE).
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
 
-# VectorCommitmentTape — direct translation of fcmps/src/tape.rs.
-#
-# Packs witness scalars into groups of COMMITMENT_WORD_LEN for Pedersen
-# vector commitments.  The commit() method produces the actual curve points
-# by calling multiexp over g_bold generators + the blinding scalar * h.
+VectorCommitmentTape — direct translation of fcmps/src/tape.rs.
+
+Packs witness scalars into groups of COMMITMENT_WORD_LEN for Pedersen
+vector commitments.  The commit() method produces the actual curve points
+by calling multiexp over g_bold generators + the blinding scalar * h.
+"""
 
 from multiexp import multiexp
 from curve import WPoint
@@ -31,17 +32,19 @@ class Variable:
 class VectorCommitmentTape:
     """Mirrors fcmps/src/tape.rs::VectorCommitmentTape.
 
-    field_cls  : HeliosField | HelioseleneField (the scalar field)
+    field_cls  : HeliosField | SeleneField (the scalar field)
     commitment_len : total scalars per commitment (multiple of COMMITMENT_WORD_LEN)
     """
 
     def __init__(self, field_cls, commitment_len: int):
-        assert commitment_len % COMMITMENT_WORD_LEN == 0, \
-            f"commitment_len {commitment_len} must be divisible by {COMMITMENT_WORD_LEN}"
+        if commitment_len % COMMITMENT_WORD_LEN != 0:
+            raise ValueError(
+                f"commitment_len {commitment_len} must be divisible by {COMMITMENT_WORD_LEN}"
+            )
         self.field_cls = field_cls
         self.commitment_len = commitment_len
         self.current_j_offset = 0
-        self.commitments: list[list] = []     # list of lists of field elements
+        self.commitments: list[list] = []  # list of lists of field elements
         self.branch_lengths: list[int] = []
 
     # ------------------------------------------------------------------
@@ -51,7 +54,8 @@ class VectorCommitmentTape:
     def append(self, variables=None) -> list:
         """Append a 128-scalar chunk. variables=None means verifier mode (no witness)."""
         if variables is not None:
-            assert len(variables) == COMMITMENT_WORD_LEN
+            if len(variables) != COMMITMENT_WORD_LEN:
+                raise ValueError(f"expected {COMMITMENT_WORD_LEN} variables, got {len(variables)}")
 
         vals = variables if variables is not None else []
 
@@ -75,11 +79,19 @@ class VectorCommitmentTape:
     # ------------------------------------------------------------------
 
     def append_branch(self, branch_len: int, branch=None) -> list:
-        assert self.current_j_offset == 0
-        assert len(self.branch_lengths) == len(self.commitments)
+        if self.current_j_offset != 0:
+            raise ValueError(
+                "append_branch must be called at a commitment boundary (current_j_offset != 0)"
+            )
+        if len(self.branch_lengths) != len(self.commitments):
+            raise ValueError("branch_lengths/commitments length mismatch")
         self.branch_lengths.append(branch_len)
-        assert branch_len > 0
-        assert branch_len <= self.commitment_len
+        if branch_len <= 0:
+            raise ValueError(f"branch_len must be positive, got {branch_len}")
+        if branch_len > self.commitment_len:
+            raise ValueError(
+                f"branch_len {branch_len} exceeds commitment_len {self.commitment_len}"
+            )
 
         words = (branch_len + COMMITMENT_WORD_LEN - 1) // COMMITMENT_WORD_LEN
 
@@ -90,7 +102,8 @@ class VectorCommitmentTape:
         # Pad branch to multiple of COMMITMENT_WORD_LEN
         padded = None
         if branch is not None:
-            assert len(branch) == branch_len
+            if len(branch) != branch_len:
+                raise ValueError(f"branch length {len(branch)} != branch_len {branch_len}")
             padded = list(branch)
             while len(padded) % COMMITMENT_WORD_LEN != 0:
                 padded.append(self.field_cls(0))
@@ -99,7 +112,7 @@ class VectorCommitmentTape:
         for b in range(words):
             chunk = None
             if padded is not None:
-                chunk = padded[b * COMMITMENT_WORD_LEN: (b + 1) * COMMITMENT_WORD_LEN]
+                chunk = padded[b * COMMITMENT_WORD_LEN : (b + 1) * COMMITMENT_WORD_LEN]
             branch_variables.extend(self.append(chunk))
 
         # Truncate padding variables
@@ -121,25 +134,32 @@ class VectorCommitmentTape:
 
         Returns (dlog_vars[scalar_bits], padding_vars, extra_var).
         """
-        assert scalar_bits <= 255
+        if scalar_bits > 255:
+            raise ValueError(f"scalar_bits {scalar_bits} exceeds maximum of 255")
 
         witness_a = None
         witness_b = None
 
         if dlog is not None:
-            assert len(dlog) == scalar_bits
+            if len(dlog) != scalar_bits:
+                raise ValueError(f"dlog length {len(dlog)} != scalar_bits {scalar_bits}")
             w = []
             for bit in dlog:
                 w.append(self.field_cls(int(bit)))
 
             pad = padding if padding is not None else []
             free = 255 - scalar_bits
-            assert len(pad) <= free
+            if len(pad) > free:
+                raise ValueError(f"padding length {len(pad)} exceeds free slots {free}")
             for i in range(free):
                 w.append(pad[i] if i < len(pad) else self.field_cls(0))
-            assert len(w) == 255
+            if len(w) != 255:
+                raise ValueError(f"dlog witness vector length {len(w)} != 255")
             w.append(extra)
-            assert len(w) == 2 * COMMITMENT_WORD_LEN
+            if len(w) != 2 * COMMITMENT_WORD_LEN:
+                raise ValueError(
+                    f"dlog witness vector length {len(w)} != {2 * COMMITMENT_WORD_LEN}"
+                )
 
             witness_a = w[:COMMITMENT_WORD_LEN]
             witness_b = w[COMMITMENT_WORD_LEN:]
@@ -178,13 +198,15 @@ class VectorCommitmentTape:
 
             # yx: yx_count slots
             yx = divisor.get("yx", [])
-            assert len(yx) <= yx_count
+            if len(yx) > yx_count:
+                raise ValueError(f"yx coefficients {len(yx)} exceed yx_count {yx_count}")
             for i in range(yx_count):
                 w.append(yx[i] if i < len(yx) else self.field_cls(0))
 
             # x: x_count-1 slots (skip x[0]=1 which is normalized)
             x = divisor.get("x", [])
-            assert len(x) <= x_count
+            if len(x) > x_count:
+                raise ValueError(f"x coefficients {len(x)} exceed x_count {x_count}")
             # x[0] should be 1 (normalized); skip it, store x[1..x_count-1]
             for i in range(1, x_count):
                 w.append(x[i] if i < len(x) else self.field_cls(0))
@@ -192,12 +214,16 @@ class VectorCommitmentTape:
             # zero: 1 slot
             w.append(divisor.get("zero", self.field_cls(0)))
 
-            assert len(w) <= 255
+            if len(w) > 255:
+                raise ValueError(f"divisor witness vector length {len(w)} exceeds 255")
             while len(w) < 255:
                 w.append(self.field_cls(0))
 
             w.append(extra)
-            assert len(w) == 2 * COMMITMENT_WORD_LEN
+            if len(w) != 2 * COMMITMENT_WORD_LEN:
+                raise ValueError(
+                    f"divisor witness vector length {len(w)} != {2 * COMMITMENT_WORD_LEN}"
+                )
 
             witness_a = w[:COMMITMENT_WORD_LEN]
             witness_b = w[COMMITMENT_WORD_LEN:]
@@ -207,15 +233,15 @@ class VectorCommitmentTape:
         extra_var = variables.pop()
 
         cursor = 1
-        yx_vars = variables[cursor: cursor + yx_count]
+        yx_vars = variables[cursor : cursor + yx_count]
         cursor += yx_count
-        x_from_power2 = variables[cursor: cursor + (x_count - 1)]
-        cursor += (x_count - 1)
+        x_from_power2 = variables[cursor : cursor + (x_count - 1)]
+        cursor += x_count - 1
         zero_var = variables[cursor]
 
         divisor_struct = {
-            "y":   variables[0],
-            "yx":  yx_vars,
+            "y": variables[0],
+            "yx": yx_vars,
             "x_from_power_of_2": x_from_power2,
             "zero": zero_var,
         }
@@ -226,8 +252,16 @@ class VectorCommitmentTape:
     # append_claimed_point — dlog + divisor + point, 4 chunks total
     # ------------------------------------------------------------------
 
-    def append_claimed_point(self, scalar_bits: int, yx_count: int, x_count: int,
-                             dlog=None, divisor=None, point=None, padding=None):
+    def append_claimed_point(
+        self,
+        scalar_bits: int,
+        yx_count: int,
+        x_count: int,
+        dlog=None,
+        divisor=None,
+        point=None,
+        padding=None,
+    ):
         """Append a full PointWithDlog to the tape (mirrors tape.rs::append_claimed_point).
 
         Uses 4 chunks (512 slots):
@@ -267,7 +301,10 @@ class VectorCommitmentTape:
 
         Returns list of WPoints.
         """
-        assert len(self.commitments) == len(blinds)
+        if len(self.commitments) != len(blinds):
+            raise ValueError(
+                f"commitments/blinds length mismatch: {len(self.commitments)} vs {len(blinds)}"
+            )
         identity = WPoint.identity(h.field_cls, h.B)
         results = []
 

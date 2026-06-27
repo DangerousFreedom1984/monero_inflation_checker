@@ -40,9 +40,7 @@ def compute_challenge_message(message, K, KI, K_t1):
     ts.append_label_value(label_KI, KI)
     ts.append_label_value(label_Kt1, K_t1)
     transcript = ts.get()
-    challenge = nacl.bindings.crypto_generichash_blake2b_salt_personal(
-        bytes(transcript)
-    ).hex()
+    challenge = nacl.bindings.crypto_generichash_blake2b_salt_personal(bytes(transcript)).hex()
     return challenge
 
 
@@ -120,9 +118,7 @@ def composition_verify(proof, messsage, K, KI):
 
     KI_part = proof.r_ki * U + proof.c * KI
 
-    challenge_nom = compute_challenge(
-        str(m), str(K_t1_part), str(K_t2_part), str(KI_part)
-    )
+    challenge_nom = compute_challenge(str(m), str(K_t1_part), str(K_t2_part), str(KI_part))
 
     if challenge_nom == proof.c:
         return True

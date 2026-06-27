@@ -1,14 +1,16 @@
-# MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
 
-## Acknowledgments
-# This project incorporates [`monero-oxide`](https://github.com/monero-oxide/monero-oxide), licensed under the [MIT License](https://github.com/monero-oxide/monero-oxide/blob/main/monero-oxide/LICENSE).
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
 
-# Bivariate polynomial arithmetic over a prime field.
-# Direct translation of monero_oxide/crypto/divisors/src/poly.rs.
-#
-# Structure: zero + sum(y_i * y^(i+1)) + sum(yx_ij * y^(i+1) * x^(j+1)) + sum(x_i * x^(i+1))
+Bivariate polynomial arithmetic over a prime field.
+Direct translation of monero_oxide/crypto/divisors/src/poly.rs.
+
+Structure: zero + sum(y_i * y^(i+1)) + sum(yx_ij * y^(i+1) * x^(j+1)) + sum(x_i * x^(i+1))
+"""
 
 import sys, os
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 
@@ -26,9 +28,9 @@ class Poly:
 
     def __init__(self, zero, y=None, yx=None, x=None):
         self.zero = zero
-        self.y  = list(y)  if y  is not None else []
+        self.y = list(y) if y is not None else []
         self.yx = [list(r) for r in yx] if yx is not None else []
-        self.x  = list(x)  if x  is not None else []
+        self.x = list(x) if x is not None else []
 
     # ------------------------------------------------------------------
     # Factory
@@ -36,7 +38,7 @@ class Poly:
 
     @classmethod
     def zero_poly(cls, zero_elem):
-        return cls(zero_elem * 0)   # zero_elem may be a field element
+        return cls(zero_elem * 0)  # zero_elem may be a field element
 
     # ------------------------------------------------------------------
     # Helpers
@@ -95,9 +97,9 @@ class Poly:
     def __add__(self, other):
         # Start from a copy of self
         res_zero = self.zero + other.zero
-        res_y  = list(self.y)
+        res_y = list(self.y)
         res_yx = [list(r) for r in self.yx]
-        res_x  = list(self.x)
+        res_x = list(self.x)
 
         z = self._zero()
 
@@ -189,7 +191,7 @@ class Poly:
         if power == 0:
             return Poly(self.zero, self.y, self.yx, self.x)
         z = self._zero()
-        new_y  = [z] * power + list(self.y)
+        new_y = [z] * power + list(self.y)
         new_yx = [[]] * power + [list(r) for r in self.yx]
 
         # Move zero_coefficient into y
@@ -254,5 +256,4 @@ class Poly:
         return "\n".join(lines)
 
     def __repr__(self):
-        return (f"Poly(zero={self.zero}, "
-                f"y={self.y}, yx={self.yx}, x={self.x})")
+        return f"Poly(zero={self.zero}, " f"y={self.y}, yx={self.yx}, x={self.x})"

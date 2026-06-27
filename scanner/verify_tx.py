@@ -1,9 +1,30 @@
-"""
+"""Per-transaction verification dispatcher: routes a tx to the right checker.
+
+Inspects a decoded transaction's version / RingCT type and calls the matching
+verifier (v1, MLSAG, CLSAG, range proofs). ``verify_tx`` returns True iff every
+check passes; failures are logged via ``settings_df25519`` loggers.
+
 This work, "MIC - Monero Inflation Checker", is a derivative of:
     "Mininero" by ShenNoether (https://github.com/monero-project/mininero).
-    "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
+    "dumb25519" by SarangNoether
+        (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
+
+# --- MIC path bootstrap: locate package root and configure sys.path ---
+import os as _os, sys as _sys
+
+_d = _os.path.dirname(_os.path.abspath(__file__))
+while _d != _os.path.dirname(_d):
+    if _os.path.exists(_os.path.join(_d, "mic_paths.py")):
+        if _d not in _sys.path:
+            _sys.path.insert(0, _d)
+        break
+    _d = _os.path.dirname(_d)
+import mic_paths  # noqa: E402,F401  (configures sys.path for component dirs)
+
+# --- end MIC path bootstrap ---
+
 import com_db
 import misc_func
 import check_v1
@@ -12,13 +33,6 @@ import check_clsag
 import check_rangeproofs
 from df25519 import Point
 import settings_df25519
-import logging
-
-
-import json
-import csv
-import time
-import multiprocessing
 
 
 def verify_tx_with_string(h, tx_to_check, i_tx=0, details=0):
@@ -36,10 +50,9 @@ def verify_tx_with_string(h, tx_to_check, i_tx=0, details=0):
             amount = 0
             for i in range(outputs):
                 amount += resp_json["vout"][i]["amount"]
-            print(
-                "Miner transaction. Total amount mined and transaction fees: "
-                + str(amount / 1e12)
-                + " XMR."
+            settings_df25519.logger_basic.info(
+                "Miner transaction. Total amount mined and transaction fees: %s XMR.",
+                amount / 1e12,
             )
         else:
             str_ki, str_inp, str_out, str_commit = check_v1.ring_sig_correct(
@@ -70,16 +83,17 @@ def verify_tx_with_string(h, tx_to_check, i_tx=0, details=0):
             amount = 0
             for i in range(outputs):
                 amount += resp_json["vout"][i]["amount"]
-            print(
-                "Miner transaction. Total amount mined and transaction fees: "
-                + str(amount / 1e12)
-                + " XMR."
+            settings_df25519.logger_basic.info(
+                "Miner transaction. Total amount mined and transaction fees: %s XMR.",
+                amount / 1e12,
             )
         else:
             raise Exception
 
     return str_ki, str_inp, str_out, str_commit
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def verify_tx(tx_to_check, i_tx=0):
     if len(tx_to_check) >= 1:
         txs = tx_to_check
@@ -95,10 +109,9 @@ def verify_tx(tx_to_check, i_tx=0):
             amount = 0
             for i in range(outputs):
                 amount += resp_json["vout"][i]["amount"]
-            print(
-                "Miner transaction. Total amount mined and transaction fees: "
-                + str(amount / 1e12)
-                + " XMR."
+            settings_df25519.logger_basic.info(
+                "Miner transaction. Total amount mined and transaction fees: %s XMR.",
+                amount / 1e12,
             )
         else:
             if not verify_v1(resp_json, resp_hex, txs, i_tx, inputs, outputs):
@@ -124,16 +137,17 @@ def verify_tx(tx_to_check, i_tx=0):
             amount = 0
             for i in range(outputs):
                 amount += resp_json["vout"][i]["amount"]
-            print(
-                "Miner transaction. Total amount mined and transaction fees: "
-                + str(amount / 1e12)
-                + " XMR."
+            settings_df25519.logger_basic.info(
+                "Miner transaction. Total amount mined and transaction fees: %s XMR.",
+                amount / 1e12,
             )
         else:
             raise Exception
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def verify_v1(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     tx_prefix = check_v1.get_tx_prefix_hash(resp_json, resp_hex)
 
@@ -153,24 +167,20 @@ def verify_v1(resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     for sig_ind in range(inputs):
         if not check_v1.check_v1(resp_json, resp_hex, sig_ind, pubs, tx_prefix):
-            str_res = (
-                "Verify block_height: "
-                + str(h)
-                + " tx : "
-                + str(txs[i_tx])
-                + " ring signature failed"
-            )
+            str_res = "Verify tx " + str(txs[i_tx]) + " ring signature failed"
             settings_df25519.logger_inflation.critical(str_res)
             return False
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def verify_v2_t1_t2(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = check_mlsag.get_tx_hash_mlsag(resp_json, resp_hex)
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
 
-    # Check key images 
+    # Check key images
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
@@ -178,54 +188,40 @@ def verify_v2_t1_t2(resp_json, resp_hex, txs, i_tx, inputs, outputs):
             settings_df25519.logger_inflation.critical(str_res)
             return False
 
-    # Check ring-signatures 
+    # Check ring-signatures
     for sig_ind in range(inputs):
-        if not (check_mlsag.check_sig_mlsag(
-                    resp_json,
-                    sig_ind,
-                    inputs,
-                    rows,
-                    pubs,
-                    masks,
-                    message
-                )):
+        if not (
+            check_mlsag.check_sig_mlsag(resp_json, sig_ind, inputs, rows, pubs, masks, message)
+        ):
 
-            str_res = ("Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " ring signature failed")
+            str_res = "Verify " + " tx : " + str(txs[i_tx]) + " ring signature failed"
             settings_df25519.logger_inflation.critical(str_res)
             # raise Exception("ring_signature_failure")
             return False
 
     # Check rangeproofs
     for sig_out in range(outputs):
-        if not check_rangeproofs.check_sig_Borromean(resp_json,sig_out):
-            str_res = ("Verify "
-                + " tx : "
-                + str(txs[i_tx])
-                + " Borromean failed"
-            )
+        if not check_rangeproofs.check_sig_borromean(resp_json, sig_out):
+            str_res = "Verify " + " tx : " + str(txs[i_tx]) + " Borromean failed"
             settings_df25519.logger_inflation.critical(str_res)
             return False
 
-    # Check commitments 
+    # Check commitments
     if not check_rangeproofs.check_commitments(resp_json):
-        str_res = ("Verify "
-        + " tx : "
-        + str(txs[i_tx])
-        + " commitments check failed")
+        str_res = "Verify " + " tx : " + str(txs[i_tx]) + " commitments check failed"
         settings_df25519.logger_inflation.critical(str_res)
         return False
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def verify_v2_t3_t4(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = check_mlsag.get_tx_hash_bp1(resp_json, resp_hex)
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
 
-    # Check key images 
+    # Check key images
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
@@ -233,56 +229,39 @@ def verify_v2_t3_t4(resp_json, resp_hex, txs, i_tx, inputs, outputs):
             settings_df25519.logger_inflation.critical(str_res)
             return False
 
-    # Check ring-signatures 
+    # Check ring-signatures
     for sig_ind in range(inputs):
-        if not (check_mlsag.check_sig_mlsag_bp1(
-                    resp_json,
-                    sig_ind,
-                    inputs,
-                    rows,
-                    pubs,
-                    masks,
-                    message
-                )):
+        if not (
+            check_mlsag.check_sig_mlsag_bp1(resp_json, sig_ind, inputs, rows, pubs, masks, message)
+        ):
 
-            str_res = ("Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " ring signature failed")
+            str_res = "Verify " + " tx : " + str(txs[i_tx]) + " ring signature failed"
             settings_df25519.logger_inflation.critical(str_res)
             # raise Exception("ring_signature_failure")
             return False
 
     # Check rangeproofs
     if not check_rangeproofs.check_sig_bp1(resp_json):
-        str_res = (
-            "Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " Borromean failed"
-        )
+        str_res = "Verify " + " tx : " + str(txs[i_tx]) + " Borromean failed"
         settings_df25519.logger_inflation.critical(str_res)
         return False
 
-    # Check commitments 
+    # Check commitments
     if not check_rangeproofs.check_commitments_bp1(resp_json):
-        str_res = (
-            "Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " commitments check failed"
-        )
+        str_res = "Verify " + " tx : " + str(txs[i_tx]) + " commitments check failed"
         settings_df25519.logger_inflation.critical(str_res)
         return False
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def verify_v2_t5(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = check_clsag.get_tx_hash_clsag(resp_json, resp_hex)
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
 
-    # Check key images 
+    # Check key images
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
@@ -290,57 +269,40 @@ def verify_v2_t5(resp_json, resp_hex, txs, i_tx, inputs, outputs):
             settings_df25519.logger_inflation.critical(str_res)
             return False
 
-    # Check ring-signatures 
+    # Check ring-signatures
     for sig_ind in range(inputs):
-        if not (check_clsag.check_sig_clsag_bp1(
-                    resp_json,
-                    sig_ind,
-                    inputs,
-                    rows,
-                    pubs,
-                    masks,
-                    message
-                )):
+        if not (
+            check_clsag.check_sig_clsag_bp1(resp_json, sig_ind, inputs, rows, pubs, masks, message)
+        ):
 
-            str_res = ("Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " ring signature failed")
+            str_res = "Verify " + " tx : " + str(txs[i_tx]) + " ring signature failed"
             settings_df25519.logger_inflation.critical(str_res)
             # raise Exception("ring_signature_failure")
             return False
 
     # Check rangeproofs
     if not check_rangeproofs.check_sig_bp1(resp_json):
-        str_res = (
-            "Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " Bulletproofs failed"
-        )
+        str_res = "Verify " + " tx : " + str(txs[i_tx]) + " Bulletproofs failed"
         settings_df25519.logger_inflation.critical(str_res)
         return False
 
-    # Check commitments 
+    # Check commitments
     if not check_rangeproofs.check_commitments_bp1(resp_json):
-        str_res = (
-            "Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " commitments check failed"
-        )
+        str_res = "Verify " + " tx : " + str(txs[i_tx]) + " commitments check failed"
         settings_df25519.logger_inflation.critical(str_res)
         return False
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def verify_v2_t6(resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
     message = check_clsag.get_tx_hash_clsag_bp_plus(resp_json, resp_hex)
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
 
-    # Check key images 
+    # Check key images
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
@@ -348,53 +310,35 @@ def verify_v2_t6(resp_json, resp_hex, txs, i_tx, inputs, outputs):
             settings_df25519.logger_inflation.critical(str_res)
             return False
 
-    # Check ring-signatures 
+    # Check ring-signatures
     for sig_ind in range(inputs):
-        if not (check_clsag.check_sig_clsag_bp1(
-                    resp_json,
-                    sig_ind,
-                    inputs,
-                    rows,
-                    pubs,
-                    masks,
-                    message
-                )):
+        if not (
+            check_clsag.check_sig_clsag_bp1(resp_json, sig_ind, inputs, rows, pubs, masks, message)
+        ):
 
-            str_res = ("Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " ring signature failed")
+            str_res = "Verify " + " tx : " + str(txs[i_tx]) + " ring signature failed"
             settings_df25519.logger_inflation.critical(str_res)
             # raise Exception("ring_signature_failure")
             return False
 
     # Check rangeproofs
     if not check_rangeproofs.check_sig_bp_plus(resp_json):
-        str_res = (
-            "Verify "
-            + " tx : "
-            + str(txs[i_tx])
-            + " Bulletproofs failed"
-        )
+        str_res = "Verify " + " tx : " + str(txs[i_tx]) + " Bulletproofs failed"
         settings_df25519.logger_inflation.critical(str_res)
         return False
 
-    # Check commitments 
+    # Check commitments
     if not check_rangeproofs.check_commitments_bp1(resp_json):
-        str_res = (
-            "Verify block_height: "
-            + str(h)
-            + " tx : "
-            + str(txs[i_tx])
-            + " commitments check failed"
-        )
+        str_res = "Verify tx " + str(txs[i_tx]) + " commitments check failed"
         settings_df25519.logger_inflation.critical(str_res)
         return False
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 # Check Points and Scalars
-#--------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------
 def check_points(points):
     not_in_curve = []
     for p in points:
@@ -404,9 +348,11 @@ def check_points(points):
         return True
     else:
         return not_in_curve
-    
+
     return False
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def check_scalars(scalars):
     not_canonical = []
     for s in scalars:
@@ -415,10 +361,12 @@ def check_scalars(scalars):
     if len(not_canonical) == 0:
         return True
     else:
-        return not_canonical 
-    
+        return not_canonical
+
     return False
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def precheck_tx(tx_to_check, i_tx=0):
     if len(tx_to_check) >= 1:
         txs = tx_to_check
@@ -451,7 +399,9 @@ def precheck_tx(tx_to_check, i_tx=0):
             raise Exception
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def precheck_v1(resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     for sig_ind in range(inputs):
@@ -469,20 +419,19 @@ def precheck_v1(resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     c = check_points(points_to_check)
 
-    if not c == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([c]))
+    if not c:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([c])
         settings_df25519.logger_precheck.critical(str_res)
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def precheck_v2_t1_t2(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
     points_to_check = []
 
-    # Check key images 
+    # Check key images
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
@@ -499,11 +448,8 @@ def precheck_v2_t1_t2(resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     ci = check_points(points_to_check)
 
-    if not ci == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([ci]))
+    if not ci:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([ci])
         settings_df25519.logger_precheck.critical(str_res)
 
     # Check rangeproofs
@@ -511,27 +457,21 @@ def precheck_v2_t1_t2(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     scalars_to_check = []
     for sig_out in range(outputs):
         P1, P2, bbee, bbs0, bbs1 = check_rangeproofs.get_borromean_vars(resp_json, sig_out)
-        points_to_check = P1+P2
+        points_to_check = P1 + P2
         scalars_to_check = [bbee] + bbs0 + bbs1
 
         ci = check_points(points_to_check)
-        if not ci == True:
-            str_res = ("tx : "
-            + str(txs[i_tx])
-            + ", points: "
-            + str([ci]))
+        if not ci:
+            str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([ci])
             settings_df25519.logger_precheck.critical(str_res)
 
         si = check_scalars(scalars_to_check)
-        if not si == True:
-            str_res = ("tx : "
-            + str(txs[i_tx])
-            + ", scalars: "
-            + str([si]))
+        if not si:
+            str_res = "tx : " + str(txs[i_tx]) + ", scalars: " + str([si])
             settings_df25519.logger_precheck.critical(str_res)
 
     points_to_check = []
-    # Check commitments 
+    # Check commitments
     if "pseudoOuts" in resp_json["rct_signatures"]:
         for i in range(len(resp_json["rct_signatures"]["pseudoOuts"])):
             points_to_check.append(Point(resp_json["rct_signatures"]["pseudoOuts"][i]))
@@ -539,20 +479,19 @@ def precheck_v2_t1_t2(resp_json, resp_hex, txs, i_tx, inputs, outputs):
             points_to_check.append(Point(resp_json["rct_signatures"]["outPk"][i]))
 
     cc = check_points(points_to_check)
-    if not cc == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([cc]))
+    if not cc:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([cc])
         settings_df25519.logger_precheck.critical(str_res)
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def precheck_v2_t3_t4(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
     points_to_check = []
 
-    # Check key images 
+    # Check key images
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
@@ -569,39 +508,29 @@ def precheck_v2_t3_t4(resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     ci = check_points(points_to_check)
 
-    if not ci == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([ci]))
+    if not ci:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([ci])
         settings_df25519.logger_precheck.critical(str_res)
-
 
     # Check rangeproofs
     points_to_check = []
     scalars_to_check = []
     proofs = check_rangeproofs.get_vars_bp1(resp_json)
-    V,A,S,T1,T2,taux,mu,L,R,a,b,t = proofs
+    V, A, S, T1, T2, taux, mu, L, R, a, b, t = proofs
     points_to_check += V.points + [A] + [S] + [T1] + [T2] + L.points + R.points
     scalars_to_check = [taux] + [mu] + [a] + [b] + [t]
 
     ci = check_points(points_to_check)
-    if not ci == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([ci]))
+    if not ci:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([ci])
         settings_df25519.logger_precheck.critical(str_res)
 
     si = check_scalars(scalars_to_check)
-    if not si == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", scalars: "
-        + str([si]))
+    if not si:
+        str_res = "tx : " + str(txs[i_tx]) + ", scalars: " + str([si])
         settings_df25519.logger_precheck.critical(str_res)
 
-    # Check commitments 
+    # Check commitments
     points_to_check = []
     for i in range(len(resp_json["rctsig_prunable"]["pseudoOuts"])):
         points_to_check.append(Point(resp_json["rctsig_prunable"]["pseudoOuts"][i]))
@@ -609,20 +538,19 @@ def precheck_v2_t3_t4(resp_json, resp_hex, txs, i_tx, inputs, outputs):
         points_to_check.append(Point(resp_json["rct_signatures"]["outPk"][i]))
 
     cc = check_points(points_to_check)
-    if not cc == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([cc]))
+    if not cc:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([cc])
         settings_df25519.logger_precheck.critical(str_res)
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def precheck_v2_t5(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
     points_to_check = []
 
-    # Check key images 
+    # Check key images
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
@@ -639,39 +567,29 @@ def precheck_v2_t5(resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     ci = check_points(points_to_check)
 
-    if not ci == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([ci]))
+    if not ci:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([ci])
         settings_df25519.logger_precheck.critical(str_res)
-
 
     # Check rangeproofs
     points_to_check = []
     scalars_to_check = []
     proofs = check_rangeproofs.get_vars_bp1(resp_json)
-    V,A,S,T1,T2,taux,mu,L,R,a,b,t = proofs
+    V, A, S, T1, T2, taux, mu, L, R, a, b, t = proofs
     points_to_check += V.points + [A] + [S] + [T1] + [T2] + L.points + R.points
     scalars_to_check = [taux] + [mu] + [a] + [b] + [t]
 
     ci = check_points(points_to_check)
-    if not ci == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([ci]))
+    if not ci:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([ci])
         settings_df25519.logger_precheck.critical(str_res)
 
     si = check_scalars(scalars_to_check)
-    if not si == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", scalars: "
-        + str([si]))
+    if not si:
+        str_res = "tx : " + str(txs[i_tx]) + ", scalars: " + str([si])
         settings_df25519.logger_precheck.critical(str_res)
 
-    # Check commitments 
+    # Check commitments
     points_to_check = []
     for i in range(len(resp_json["rctsig_prunable"]["pseudoOuts"])):
         points_to_check.append(Point(resp_json["rctsig_prunable"]["pseudoOuts"][i]))
@@ -679,20 +597,19 @@ def precheck_v2_t5(resp_json, resp_hex, txs, i_tx, inputs, outputs):
         points_to_check.append(Point(resp_json["rct_signatures"]["outPk"][i]))
 
     cc = check_points(points_to_check)
-    if not cc == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([cc]))
+    if not cc:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([cc])
         settings_df25519.logger_precheck.critical(str_res)
 
     return True
-#--------------------------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------------------------
 def precheck_v2_t6(resp_json, resp_hex, txs, i_tx, inputs, outputs):
     pubs, masks = misc_func.get_members_and_masks_in_rings(resp_json)
     points_to_check = []
 
-    # Check key images 
+    # Check key images
     for sig_ind in range(inputs):
         Iv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
         if not (misc_func.verify_ki(Iv)):
@@ -709,39 +626,29 @@ def precheck_v2_t6(resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     ci = check_points(points_to_check)
 
-    if not ci == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([ci]))
+    if not ci:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([ci])
         settings_df25519.logger_precheck.critical(str_res)
-
 
     # Check rangeproofs
     points_to_check = []
     scalars_to_check = []
     proofs = check_rangeproofs.get_vars_bp_plus(resp_json)
     V, A, A1, B, r1, s1, d1, L, R = proofs
-    points_to_check += V.points +[A]+[A1]+[B]+L.points + R.points
-    scalars_to_check = [r1]+[s1]+[d1]
+    points_to_check += V.points + [A] + [A1] + [B] + L.points + R.points
+    scalars_to_check = [r1] + [s1] + [d1]
 
     ci = check_points(points_to_check)
-    if not ci == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([ci]))
+    if not ci:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([ci])
         settings_df25519.logger_precheck.critical(str_res)
 
     si = check_scalars(scalars_to_check)
-    if not si == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", scalars: "
-        + str([si]))
+    if not si:
+        str_res = "tx : " + str(txs[i_tx]) + ", scalars: " + str([si])
         settings_df25519.logger_precheck.critical(str_res)
 
-    # Check commitments 
+    # Check commitments
     points_to_check = []
     for i in range(len(resp_json["rctsig_prunable"]["pseudoOuts"])):
         points_to_check.append(Point(resp_json["rctsig_prunable"]["pseudoOuts"][i]))
@@ -749,11 +656,8 @@ def precheck_v2_t6(resp_json, resp_hex, txs, i_tx, inputs, outputs):
         points_to_check.append(Point(resp_json["rct_signatures"]["outPk"][i]))
 
     cc = check_points(points_to_check)
-    if not cc == True:
-        str_res = ("tx : "
-        + str(txs[i_tx])
-        + ", points: "
-        + str([cc]))
+    if not cc:
+        str_res = "tx : " + str(txs[i_tx]) + ", points: " + str([cc])
         settings_df25519.logger_precheck.critical(str_res)
 
     return True

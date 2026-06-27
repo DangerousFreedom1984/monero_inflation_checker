@@ -1,7 +1,14 @@
-"""Helios/Selene Point operations implementation """
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
+
+Helios/Selene Point operations implementation
+"""
 
 class WeierstrassCurve:
     """Short Weierstrass curve: y² = x³ + a·x + b (mod p)"""
+
     def __init__(self, a: int, b: int, prime: int):
         self.a = a % prime
         self.b = b % prime
@@ -10,13 +17,14 @@ class WeierstrassCurve:
     def __repr__(self):
         return f"WeierstrassCurve(a={hex(self.a)}, b={hex(self.b)}, p={hex(self.p)})"
 
+
 class Point:
     """Elliptic curve point with full standard operations (affine coordinates)"""
-    
+
     def __init__(self, curve: WeierstrassCurve, x: int | None = None, y: int | None = None):
         self.curve = curve
         if x is None or y is None:
-            self.x = None   # Point at infinity
+            self.x = None  # Point at infinity
             self.y = None
         else:
             self.x = x % curve.p
@@ -26,7 +34,7 @@ class Point:
 
     @classmethod
     def infinity(cls, curve: WeierstrassCurve):
-        """Point at infinity """
+        """Point at infinity"""
         return cls(curve, None, None)
 
     def is_infinity(self) -> bool:
@@ -127,6 +135,4 @@ class Point:
         """Return uncompressed hex (64 hex digits each)"""
         if self.is_infinity():
             return "infinity"
-        return (f"x = {hex(self.x)[2:].zfill(64)}\n"
-                f"y = {hex(self.y)[2:].zfill(64)}")
-    
+        return f"x = {hex(self.x)[2:].zfill(64)}\n" f"y = {hex(self.y)[2:].zfill(64)}"

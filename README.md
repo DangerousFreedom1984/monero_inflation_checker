@@ -4,6 +4,8 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
     "Mininero" by ShenNoether (https://github.com/monero-project/mininero) and
     "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 
+Acknowledgments: the FCMP++ part incorporates [monero-oxide](https://github.com/monero-oxide/monero-oxide) by kayabaNerve, licensed under the MIT License.
+
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 
 ## TLDR

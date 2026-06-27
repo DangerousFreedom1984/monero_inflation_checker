@@ -1,5 +1,18 @@
 __pycache__
+*.pyc
 .history/**
-block_stats.csv
-last_block_scanned.txt
 
+# Python virtualenvs (README suggests .vmic)
+.vmic/
+.venv/
+venv/
+
+# Editor / tooling
+.vscode/
+
+# Compiled native extensions are build artifacts, not source
+# (built from fcmp/bindings/helioselene_bindings.cpp)
+*.so
+
+# Runtime-generated stats / logs
+logs/*.log

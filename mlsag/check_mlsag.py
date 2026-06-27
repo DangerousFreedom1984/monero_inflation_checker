@@ -1,18 +1,20 @@
-"""
+"""Verification of MLSAG (RingCT type 1-4) ring signatures and range proofs.
+
 This work, "MIC - Monero Inflation Checker", is a derivative of:
     "Mininero" by ShenNoether (https://github.com/monero-project/mininero).
-    "dumb25519" by SarangNoether (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
+    "dumb25519" by SarangNoether
+        (https://github.com/SarangNoether/skunkworks/tree/curves/dumb25519)
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
-import com_db
+
 import misc_func
-import json
 import df25519
-from df25519 import Scalar, Point, PointVector, ScalarVector
+from df25519 import Scalar, Point
 import copy
-import multiprocessing
 import check_rangeproofs
+import settings_df25519
 from concurrent.futures import as_completed, ProcessPoolExecutor
+
 
 def ring_sig_correct(h, resp_json, resp_hex, txs, i_tx, inputs, outputs):
     rows = len(resp_json["vin"][0]["key"]["key_offsets"])
@@ -40,13 +42,12 @@ def ring_sig_correct(h, resp_json, resp_hex, txs, i_tx, inputs, outputs):
                     )
                 )
 
-        except:
-            print(
-                "Verify block_height: "
-                + str(h)
-                + " tx : "
-                + str(txs[i_tx])
-                + " ring signature failed"
+        except Exception as exc:
+            settings_df25519.logger_inflation.warning(
+                "block_height %s tx %s: MLSAG ring signature check raised: %r",
+                h,
+                txs[i_tx],
+                exc,
             )
 
     str_inp = []
@@ -57,18 +58,13 @@ def ring_sig_correct(h, resp_json, resp_hex, txs, i_tx, inputs, outputs):
     for sig_ind in range(outputs):
         try:
             with ProcessPoolExecutor() as exe:
-                x.append(
-                    exe.submit(
-                        check_rangeproofs.check_sig_Borromean, resp_json, sig_ind
-                    )
-                )
-        except:
-            print(
-                "Verify block_height: "
-                + str(h)
-                + " tx : "
-                + str(txs[i_tx])
-                + " Borromean failed"
+                x.append(exe.submit(check_rangeproofs.check_sig_borromean, resp_json, sig_ind))
+        except Exception as exc:
+            settings_df25519.logger_inflation.warning(
+                "block_height %s tx %s: Borromean range proof check raised: %r",
+                h,
+                txs[i_tx],
+                exc,
             )
 
     str_out = []
@@ -77,13 +73,12 @@ def ring_sig_correct(h, resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     try:
         str_commits = check_rangeproofs.check_commitments(resp_json)
-    except:
-        print(
-            "Verify block_height: "
-            + str(h)
-            + " tx : "
-            + str(txs[i_tx])
-            + " commitments check failed"
+    except Exception as exc:
+        settings_df25519.logger_inflation.warning(
+            "block_height %s tx %s: commitments check raised: %r",
+            h,
+            txs[i_tx],
+            exc,
         )
 
     return str_ki, str_inp, str_out, str_commits
@@ -104,44 +99,34 @@ def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs):
             with ProcessPoolExecutor() as exe:
                 y.append(
                     exe.submit(
-                        check_sig_mlsag_bp1,
-                        resp_json,
-                        sig_ind,
-                        inputs,
-                        rows,
-                        pubs,
-                        masks,
-                        message
+                        check_sig_mlsag_bp1, resp_json, sig_ind, inputs, rows, pubs, masks, message
                     )
                 )
 
-        except:
-            print(
-                "Verify block_height: "
-                + str(h)
-                + " tx : "
-                + str(txs[i_tx])
-                + " ring signature failed"
+        except Exception as exc:
+            settings_df25519.logger_inflation.warning(
+                "block_height %s tx %s: MLSAG ring signature check raised: %r",
+                h,
+                txs[i_tx],
+                exc,
             )
 
     str_inp = []
     for res in as_completed(y):
         str_inp.append(res.result())
 
-    x = []
     str_out = ""
     for sig_ind in range(1):
         try:
             # with ProcessPoolExecutor() as exe:
             #     x.append(exe.submit(check_rangeproofs.check_sig_bp1, resp_json))
             ver_bp, str_out = check_rangeproofs.check_sig_bp1(resp_json)
-        except:
-            print(
-                "Verify block_height: "
-                + str(h)
-                + " tx : "
-                + str(txs[i_tx])
-                + " Bulletproofs failed"
+        except Exception as exc:
+            settings_df25519.logger_inflation.warning(
+                "block_height %s tx %s: Bulletproof check raised: %r",
+                h,
+                txs[i_tx],
+                exc,
             )
 
     # for res in as_completed(x):
@@ -149,13 +134,12 @@ def ring_sig_correct_bp1(h, resp_json, resp_hex, txs, i_tx, inputs, outputs):
 
     try:
         str_commits = check_rangeproofs.check_commitments_bp1(resp_json)
-    except:
-        print(
-            "Verify block_height: "
-            + str(h)
-            + " tx : "
-            + str(txs[i_tx])
-            + " commitments check failed"
+    except Exception as exc:
+        settings_df25519.logger_inflation.warning(
+            "block_height %s tx %s: commitments check raised: %r",
+            h,
+            txs[i_tx],
+            exc,
         )
 
     return str_ki, str_inp, str_out, str_commits
@@ -172,23 +156,20 @@ def check_sig_mlsag(resp_json, sig_ind, inputs, rows, pubs, masks, message):
 
     IIv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
 
-    return check_MLSAG(message, PK, IIv, cc, ss_scalar)
+    return check_mlsag(message, PK, IIv, cc, ss_scalar)
 
 
-def check_sig_mlsag_bp1(
-    resp_json, sig_ind, inputs, rows, pubs, masks, message 
-):
+def check_sig_mlsag_bp1(resp_json, sig_ind, inputs, rows, pubs, masks, message):
     pseudoOuts = misc_func.get_pseudo_outs_bp1(resp_json, sig_ind)
     sss = resp_json["rctsig_prunable"]["MGs"][sig_ind]["ss"]
     ss_scalar = misc_func.ss_to_scalar(sss, rows, 2)
     cc = Scalar(resp_json["rctsig_prunable"]["MGs"][sig_ind]["cc"])
     PK = misc_func.point_matrix_mg(pubs[sig_ind], masks[sig_ind], pseudoOuts)
     IIv = Point(resp_json["vin"][sig_ind]["key"]["k_image"])
-    return check_MLSAG(message, PK, IIv, cc, ss_scalar)
+    return check_mlsag(message, PK, IIv, cc, ss_scalar)
 
 
-
-def generate_MLSAG(m, PK, sk, index):
+def generate_mlsag(m, PK, sk, index):
     rows = len(PK)
     cols = len(PK[0])
     msg0 = ""
@@ -243,7 +224,7 @@ def generate_MLSAG(m, PK, sk, index):
     return ss, cc, I0
 
 
-def check_MLSAG(m, PK, I, c, ss):
+def check_mlsag(m, PK, I, c, ss):
     rows = len(PK)
     c_old = copy.copy(c)
 
@@ -269,7 +250,6 @@ def check_MLSAG(m, PK, I, c, ss):
         i = i + 1
 
     return (c_old - c) == Scalar(0)
-    
 
 
 def get_tx_hash_mlsag(resp_json, resp_hex):

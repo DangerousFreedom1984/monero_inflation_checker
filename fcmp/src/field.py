@@ -1,17 +1,18 @@
-# MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
 
-## Acknowledgments
-# This project incorporates [`monero-oxide`](https://github.com/monero-oxide/monero-oxide), licensed under the [MIT License](https://github.com/monero-oxide/monero-oxide/blob/main/monero-oxide/LICENSE).
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
 
-# Finite field arithmetic for Helios/Selene FCMP++ curve tower.
-#
-# HeliosField  = Ed25519 base field  (p = 2^255 - 19, same as Field25519 in Rust)
-# HelioseleneField = novel field     (p = 0x7FFF...DF53)
-#
-# Both use little-endian 32-byte encoding, from_uniform_bytes = LE-int mod p.
+Finite field arithmetic for Helios/Selene FCMP++ curve tower.
+
+HeliosField = Ed25519 base field  (p = 2^255 - 19, same as Field25519 in Rust)
+SeleneField = novel field          (p = 0x7FFF...DF53; helioselene::HelioseleneField in Rust)
+
+Both use little-endian 32-byte encoding, from_uniform_bytes = LE-int mod p.
+"""
 
 HELIOS_P = 2**255 - 19
-HELIOSELENE_P = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF735481D1969F317F9850B68DF11DF53
+SELENE_P = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF735481D1969F317F9850B68DF11DF53
 
 # sqrt(-1) mod HELIOS_P  (= 2^((p-1)/4) mod p, used in RFC-8032 sqrt8k5)
 _HELIOS_SQRT_M1 = pow(2, (HELIOS_P - 1) // 4, HELIOS_P)
@@ -22,6 +23,7 @@ class HeliosField:
 
     Mirrors dalek_ff_group::FieldElement in the Rust codebase.
     """
+
     P = HELIOS_P
 
     __slots__ = ("v",)
@@ -131,12 +133,13 @@ class HeliosField:
         return bits
 
 
-class HelioseleneField:
-    """Helioselene field: p = 0x7FFF...DF53.
+class SeleneField:
+    """Selene's base field: p = 0x7FFF...DF53 (== Helios's scalar field).
 
     Mirrors helioselene::HelioseleneField in the Rust codebase.
     """
-    P = HELIOSELENE_P
+
+    P = SELENE_P
 
     __slots__ = ("v",)
 
@@ -145,20 +148,20 @@ class HelioseleneField:
 
     # --- arithmetic ---
 
-    def __add__(self, other: "HelioseleneField") -> "HelioseleneField":
-        return HelioseleneField(self.v + other.v)
+    def __add__(self, other: "SeleneField") -> "SeleneField":
+        return SeleneField(self.v + other.v)
 
-    def __sub__(self, other: "HelioseleneField") -> "HelioseleneField":
-        return HelioseleneField(self.v - other.v)
+    def __sub__(self, other: "SeleneField") -> "SeleneField":
+        return SeleneField(self.v - other.v)
 
-    def __mul__(self, other: "HelioseleneField") -> "HelioseleneField":
-        return HelioseleneField(self.v * other.v)
+    def __mul__(self, other: "SeleneField") -> "SeleneField":
+        return SeleneField(self.v * other.v)
 
-    def __neg__(self) -> "HelioseleneField":
-        return HelioseleneField(-self.v)
+    def __neg__(self) -> "SeleneField":
+        return SeleneField(-self.v)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, HelioseleneField):
+        if isinstance(other, SeleneField):
             return self.v == other.v
         return NotImplemented
 
@@ -166,7 +169,7 @@ class HelioseleneField:
         return hash(self.v)
 
     def __repr__(self) -> str:
-        return f"HelioseleneField(0x{self.v:064x})"
+        return f"SeleneField(0x{self.v:064x})"
 
     def __int__(self) -> int:
         return self.v
@@ -174,36 +177,36 @@ class HelioseleneField:
     # --- constants ---
 
     @classmethod
-    def zero(cls) -> "HelioseleneField":
+    def zero(cls) -> "SeleneField":
         return cls(0)
 
     @classmethod
-    def one(cls) -> "HelioseleneField":
+    def one(cls) -> "SeleneField":
         return cls(1)
 
     def is_zero(self) -> bool:
         return self.v == 0
 
-    def square(self) -> "HelioseleneField":
-        return HelioseleneField(self.v * self.v)
+    def square(self) -> "SeleneField":
+        return SeleneField(self.v * self.v)
 
     # --- field operations ---
 
-    def inv(self) -> "HelioseleneField":
+    def inv(self) -> "SeleneField":
         if self.v == 0:
             raise ZeroDivisionError("invert of zero")
-        return HelioseleneField(pow(self.v, self.P - 2, self.P))
+        return SeleneField(pow(self.v, self.P - 2, self.P))
 
     def sqrt(self):
         """p ≡ 3 mod 4: sqrt = self^((p+1)/4), normalized to even.
 
-        Returns a HelioseleneField or None if self is not a QR.
+        Returns a SeleneField or None if self is not a QR.
         """
         p = self.P
         res_v = pow(self.v, (p + 1) // 4, p)
         if res_v * res_v % p != self.v:
             return None
-        res = HelioseleneField(res_v)
+        res = SeleneField(res_v)
         if res.is_odd():
             res = -res
         return res
@@ -227,7 +230,7 @@ class HelioseleneField:
         return cls(v)
 
     @classmethod
-    def from_uniform_bytes(cls, b: bytes) -> "HelioseleneField":
+    def from_uniform_bytes(cls, b: bytes) -> "SeleneField":
         """64-byte LE integer reduced mod p. Matches FromUniformBytes<64>."""
         if len(b) != 64:
             raise ValueError(f"expected 64 bytes, got {len(b)}")

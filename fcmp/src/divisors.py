@@ -1,38 +1,40 @@
-# MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
+"""MIC - Monero Inflation Checker - is licensed under GPL 3.0 by DangerousFreedom.
 
-## Acknowledgments
-# This project incorporates [`monero-oxide`](https://github.com/monero-oxide/monero-oxide), licensed under the [MIT License](https://github.com/monero-oxide/monero-oxide/blob/main/monero-oxide/LICENSE).
+Acknowledgments: incorporates monero-oxide
+(https://github.com/monero-oxide/monero-oxide), licensed under the MIT License.
 
-# Full divisor computation pipeline for FCMP++.
-# Translates:
-#   - ec.rs           (Wei25519 projective arithmetic, dbl/add-1998-cmo-2)
-#   - barycentric.rs  (Lagrange interpolation)
-#   - divisor.rs      (evaluation-domain arithmetic)
-#   - lib.rs          (ScalarDecomposition, new_divisor, scalar_mul_divisor)
-#
-# All field arithmetic uses HeliosField (p = 2^255 - 19), the base field of
-# Wei25519 (the Weierstrass model of Ed25519 used for divisor computation).
+Full divisor computation pipeline for FCMP++.
+Translates:
+  - ec.rs           (Wei25519 projective arithmetic, dbl/add-1998-cmo-2)
+  - barycentric.rs  (Lagrange interpolation)
+  - divisor.rs      (evaluation-domain arithmetic)
+  - lib.rs          (ScalarDecomposition, new_divisor, scalar_mul_divisor)
+
+All field arithmetic uses HeliosField (p = 2^255 - 19), the base field of
+Wei25519 (the Weierstrass model of Ed25519 used for divisor computation).
+"""
 
 import sys, os
+
 sys.path.insert(0, os.path.dirname(__file__))
 
-from field import HeliosField, HelioseleneField
+from field import HeliosField, SeleneField
 from polynomial import Poly
 
 # ---------------------------------------------------------------------------
 # Global constants
 # ---------------------------------------------------------------------------
 
-P = HeliosField.P   # 2^255 - 19
+P = HeliosField.P  # 2^255 - 19
 
 # Wei25519 Weierstrass parameters  (from divisors/src/lib.rs ed25519 impl,
 #   draft-ietf-lwig-curve-representations-02.pdf appendix E.3)
-WEI25519_A = 0x2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa984914a144
-WEI25519_B = 0x7b425ed097b425ed097b425ed097b425ed097b425ed097b4260b5e9c7710c864
+WEI25519_A = 0x2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA984914A144
+WEI25519_B = 0x7B425ED097B425ED097B425ED097B425ED097B425ED097B4260B5E9C7710C864
 
 # Ed25519 scalar field order l = 2^252 + 27742317777372353535851937790883648493
 ED25519_L = 2**252 + 27742317777372353535851937790883648493
-ED25519_NUM_BITS = 253   # PrimeField::NUM_BITS for dalek_ff_group::Scalar
+ED25519_NUM_BITS = 253  # PrimeField::NUM_BITS for dalek_ff_group::Scalar
 
 # Interpolator degree for scalar-mul divisors (from DivisorCurve impl for Ed25519)
 INTERPOLATOR_DEGREE = 128
@@ -41,13 +43,14 @@ INTERPOLATOR_DEGREE = 128
 INTERPOLATOR_DEGREE_C1C2 = 130
 
 # a=-3 as integers in each curve's base field
-SELENE_A = HelioseleneField.P - 3   # -3 mod HelioseleneField.P
-HELIOS_A = HeliosField.P - 3        # -3 mod HeliosField.P  (same as HeliosField.P - 3)
+SELENE_A = SeleneField.P - 3  # -3 mod SeleneField.P
+HELIOS_A = HeliosField.P - 3  # -3 mod HeliosField.P  (same as HeliosField.P - 3)
 
 
 # ---------------------------------------------------------------------------
 # Batch modular inversion  (Montgomery's trick: 3(n-1) muls + 1 inv)
 # ---------------------------------------------------------------------------
+
 
 def batch_invert(vals, p=P):
     n = len(vals)
@@ -71,6 +74,7 @@ def batch_invert(vals, p=P):
 #   Identity: (X=0, Y=1, Z=0)
 #   Coordinates are plain Python integers mod P.
 # ---------------------------------------------------------------------------
+
 
 class Wei25519Point:
     __slots__ = ("X", "Y", "Z")
@@ -111,17 +115,17 @@ class Wei25519Point:
             return Wei25519Point.identity()
         X1, Y1, Z1 = self.X, self.Y, self.Z
         X1X1 = X1 * X1 % P
-        w  = (WEI25519_A * Z1 % P * Z1 + X1X1 + X1X1 + X1X1) % P
-        s   = Y1 * Z1 % P
-        ss  = s * s % P
+        w = (WEI25519_A * Z1 % P * Z1 + X1X1 + X1X1 + X1X1) % P
+        s = Y1 * Z1 % P
+        ss = s * s % P
         sss = s * ss % P
-        R   = Y1 * s % P
-        B   = X1 * R % P
-        B4  = B * 4 % P
-        h   = (w * w - B4 * 2) % P
-        X3  = h * s * 2 % P
-        Y3  = (w * (B4 - h) - R * R * 8) % P
-        Z3  = sss * 8 % P
+        R = Y1 * s % P
+        B = X1 * R % P
+        B4 = B * 4 % P
+        h = (w * w - B4 * 2) % P
+        X3 = h * s * 2 % P
+        Y3 = (w * (B4 - h) - R * R * 8) % P
+        Z3 = sss * 8 % P
         return Wei25519Point(X3, Y3, Z3)
 
     # add-1998-cmo-2  (no a term in addition formula)
@@ -135,16 +139,16 @@ class Wei25519Point:
         Y1Z2 = Y1 * Z2 % P
         X1Z2 = X1 * Z2 % P
         Z1Z2 = Z1 * Z2 % P
-        u   = (Y2 * Z1 - Y1Z2) % P
-        uu  = u * u % P
-        v   = (X2 * Z1 - X1Z2) % P
-        vv  = v * v % P
+        u = (Y2 * Z1 - Y1Z2) % P
+        uu = u * u % P
+        v = (X2 * Z1 - X1Z2) % P
+        vv = v * v % P
         vvv = v * vv % P
-        R   = vv * X1Z2 % P
-        A   = (uu * Z1Z2 - vvv - 2 * R) % P
-        X3  = v * A % P
-        Y3  = (u * (R - A) - vvv * Y1Z2) % P
-        Z3  = vvv * Z1Z2 % P
+        R = vv * X1Z2 % P
+        A = (uu * Z1Z2 - vvv - 2 * R) % P
+        X3 = v * A % P
+        Y3 = (u * (R - A) - vvv * Y1Z2) % P
+        Z3 = vvv * Z1Z2 % P
         # Edge cases
         same_x = X1 * Z2 % P == X2 * Z1 % P
         if same_x:
@@ -188,6 +192,7 @@ def _batch_to_affine(points):
 # ---------------------------------------------------------------------------
 # Lagrange interpolation  (from barycentric.rs)
 # ---------------------------------------------------------------------------
+
 
 def _uni_mul_x_c(coeffs, c, p=P):
     """Multiply polynomial (leading first) by (x + c), return new list."""
@@ -258,7 +263,8 @@ class Interpolator:
         polys = []
         for i in range(n):
             li, rem = _uni_div_x_c(L, (-i) % p, p)
-            assert rem == 0, f"Lagrange remainder nonzero at i={i}"
+            if rem != 0:
+                raise ValueError(f"Lagrange remainder nonzero at i={i}")
             li = [c * inv_w[i] % p for c in li]
             polys.append(li)
         return polys
@@ -278,6 +284,7 @@ class Interpolator:
 
 _INTERP_CACHE = {}
 
+
 def get_interpolator(degree=INTERPOLATOR_DEGREE, p=P):
     key = (degree, p)
     if key not in _INTERP_CACHE:
@@ -290,20 +297,22 @@ def get_interpolator(degree=INTERPOLATOR_DEGREE, p=P):
 #   Represents: x_coeff*x + zero_coeff + y_coeff*y
 # ---------------------------------------------------------------------------
 
+
 class SmallDivisor:
     __slots__ = ("x_coeff", "zero_coeff", "y_coeff")
 
     def __init__(self, x_coeff, zero_coeff, y_coeff, p=None):
         _p = p if p is not None else P
-        self.x_coeff   = int(x_coeff)  % _p
+        self.x_coeff = int(x_coeff) % _p
         self.zero_coeff = int(zero_coeff) % _p
-        self.y_coeff   = int(y_coeff)  % _p
+        self.y_coeff = int(y_coeff) % _p
 
 
 # ---------------------------------------------------------------------------
 # Divisor  (evaluation-domain representation, from divisor.rs)
 #   f(x, y) = A(x) - y * B(x), stored as evaluation vectors at x = 0..128
 # ---------------------------------------------------------------------------
+
 
 class Divisor:
     __slots__ = ("a", "a_deg", "b", "b_deg")
@@ -346,8 +355,8 @@ class Divisor:
         for i in range(n):
             A1, B1 = self.a[i], self.b[i]
             A2, B2 = other.a[i], other.b[i]
-            a1a2  = A1 * A2 % p
-            b1b2  = B1 * B2 % p
+            a1a2 = A1 * A2 % p
+            b1b2 = B1 * B2 % p
             cross = (A1 + B1) * (A2 + B2) % p
             new_b[i] = (cross - a1a2 - b1b2) % p
             new_a[i] = (a1a2 + b1b2 * modulus[i]) % p
@@ -367,8 +376,8 @@ class Divisor:
         b2 = small.y_coeff
         for i in range(n):
             A1, B1 = self.a[i], self.b[i]
-            a1a2  = A1 * a2 % p
-            b1b2  = B1 * b2 % p
+            a1a2 = A1 * a2 % p
+            b1b2 = B1 * b2 % p
             cross = (A1 + B1) * (a2 + b2) % p
             new_b[i] = (cross - a1a2 - b1b2) % p
             new_a[i] = (a1a2 + b1b2 * modulus[i]) % p
@@ -388,8 +397,8 @@ class Divisor:
         n = len(self.a)
         inc_l = 1 if x1 is not None else 0
         inc_r = 1 if x2 is not None else 0
-        xv1   = (int(x1) % p) if x1 is not None else (p - 1)  # -1 if None
-        xv2   = (int(x2) % p) if x2 is not None else (p - 1)
+        xv1 = (int(x1) % p) if x1 is not None else (p - 1)  # -1 if None
+        xv2 = (int(x2) % p) if x2 is not None else (p - 1)
         denom = []
         xl, xr = 0, 0
         for _ in range(n):
@@ -417,17 +426,18 @@ class Divisor:
 # Line computation  (from lib.rs finish_line / slopes_and_intercepts)
 # ---------------------------------------------------------------------------
 
+
 def _compute_line(ax, ay, a_is_id, bx, by, b_is_id):
     """Compute SmallDivisor for the line (or degenerate case) through two points.
 
     Returns SmallDivisor representing:  x_coeff*x + zero_coeff + y_coeff*y
     """
     if a_is_id and b_is_id:
-        return SmallDivisor(0, 1, 0)                  # constant 1
+        return SmallDivisor(0, 1, 0)  # constant 1
 
     if a_is_id or b_is_id:
         x0 = bx if a_is_id else ax
-        return SmallDivisor(1, (-int(x0)) % P, 0)     # x - x0
+        return SmallDivisor(1, (-int(x0)) % P, 0)  # x - x0
 
     # Both are real points
     ax, ay, bx, by = int(ax) % P, int(ay) % P, int(bx) % P, int(by) % P
@@ -440,10 +450,18 @@ def _compute_line(ax, ay, a_is_id, bx, by, b_is_id):
         # Same point: tangent line  slope = (3x² + A) / (2y)
         numer = (3 * ax % P * ax + WEI25519_A) % P
         denom = 2 * ay % P
+        if denom == 0:
+            raise ValueError(
+                f"degenerate tangent: 2-torsion point (y=0) at x={ax}; input must be in prime-order subgroup"
+            )
         slope = numer * pow(denom, P - 2, P) % P
     else:
-        dx    = (bx - ax) % P
-        dy    = (by - ay) % P
+        dx = (bx - ax) % P
+        dy = (by - ay) % P
+        if dx == 0:
+            raise ValueError(
+                f"degenerate chord: x-coordinates equal ({ax}) but points not caught by equality check"
+            )
         slope = dy * pow(dx, P - 2, P) % P
 
     intercept = (by - slope * bx) % P
@@ -455,6 +473,7 @@ def _compute_line(ax, ay, a_is_id, bx, by, b_is_id):
 # lines_and_denoms  (matches the pair-ordering of lib.rs lines_and_denoms)
 # ---------------------------------------------------------------------------
 
+
 def _lines_and_denoms(points):
     """Build (SmallDivisor, (x1, x2)) for every pair in the merge tree.
 
@@ -462,7 +481,7 @@ def _lines_and_denoms(points):
     Higher levels: pops from the END of the accumulated sums (matches Rust pop()).
     """
     n = len(points)
-    all_pairs = []   # list of (Wei25519Point, Wei25519Point)
+    all_pairs = []  # list of (Wei25519Point, Wei25519Point)
 
     # ----- Level 0: iterate forwards -----
     divs = []
@@ -478,7 +497,7 @@ def _lines_and_denoms(points):
     while len(divs) > 1:
         next_divs = []
         if len(divs) % 2 == 1:
-            next_divs.append(divs.pop())   # carry the odd one out
+            next_divs.append(divs.pop())  # carry the odd one out
         while divs:
             a = divs.pop()
             b = divs.pop()
@@ -487,8 +506,8 @@ def _lines_and_denoms(points):
         divs = next_divs
 
     # ----- Batch convert all non-identity points to affine -----
-    proj_list  = []
-    pair_slots = []   # (pair_index, 0_or_1, index_in_proj_list)
+    proj_list = []
+    pair_slots = []  # (pair_index, 0_or_1, index_in_proj_list)
     for pi, (a, b) in enumerate(all_pairs):
         if not a.is_identity():
             pair_slots.append((pi, 0, len(proj_list)))
@@ -501,14 +520,14 @@ def _lines_and_denoms(points):
 
     # Fill in affine info: default = (0, 0, is_identity=True)
     pair_aff = [[(0, 0, True), (0, 0, True)] for _ in all_pairs]
-    for (pi, which, ki) in pair_slots:
+    for pi, which, ki in pair_slots:
         pair_aff[pi][which] = (aff[ki][0], aff[ki][1], False)
 
     # ----- Compute lines and denoms -----
     result = []
     for pi, _ in enumerate(all_pairs):
-        (ax, ay, a_id) = pair_aff[pi][0]
-        (bx, by, b_id) = pair_aff[pi][1]
+        ax, ay, a_id = pair_aff[pi][0]
+        bx, by, b_id = pair_aff[pi][1]
         line = _compute_line(ax, ay, a_id, bx, by, b_id)
         x1 = None if a_id else ax
         x2 = None if b_id else bx
@@ -520,12 +539,13 @@ def _lines_and_denoms(points):
 # divisor_to_poly  (from lib.rs divisor_to_poly)
 # ---------------------------------------------------------------------------
 
+
 def _divisor_to_poly(div_obj, interp):
     """Convert Divisor evaluation-domain representation to a Poly."""
     a_coeffs, b_coeffs = div_obj.interpolate(interp)
     # a_coeffs: [zero_coeff, x^1, x^2, ..., x^128]  (leading last)
     # b_coeffs: [y^1 coeff, yx^1 coeff, ..., yx^127]  (same layout)
-    zero_coeff     = HeliosField(a_coeffs[0])
+    zero_coeff = HeliosField(a_coeffs[0])
     x_coefficients = [HeliosField(c) for c in a_coeffs[1:]]
     y_coefficients = [HeliosField(b_coeffs[0])]
     yx_coefficients = [[HeliosField(c) for c in b_coeffs[1:]]]
@@ -535,6 +555,7 @@ def _divisor_to_poly(div_obj, interp):
 # ---------------------------------------------------------------------------
 # new_divisor  (from lib.rs new_divisor)
 # ---------------------------------------------------------------------------
+
 
 def new_divisor(points, interp=None):
     """Compute the divisor polynomial for a list of Wei25519Points.
@@ -596,8 +617,10 @@ def new_divisor(points, interp=None):
 # Uses dbl-1998-cmo-2 with a generic `a` parameter.
 # ---------------------------------------------------------------------------
 
+
 class GenericProjectivePoint:
     """Projective point on y² = x³ + a·x + b with coordinates mod p."""
+
     __slots__ = ("X", "Y", "Z", "p", "a")
 
     def __init__(self, X, Y, Z, p, a):
@@ -632,17 +655,17 @@ class GenericProjectivePoint:
         X1, Y1, Z1 = self.X, self.Y, self.Z
         X1X1 = X1 * X1 % p
         # dbl-1998-cmo-2: w = a*Z1² + 3*X1²
-        w   = (self.a * Z1 % p * Z1 + X1X1 + X1X1 + X1X1) % p
-        s   = Y1 * Z1 % p
-        ss  = s * s % p
+        w = (self.a * Z1 % p * Z1 + X1X1 + X1X1 + X1X1) % p
+        s = Y1 * Z1 % p
+        ss = s * s % p
         sss = s * ss % p
-        R   = Y1 * s % p
-        B_  = X1 * R % p
-        B4  = B_ * 4 % p
-        h   = (w * w - B4 * 2) % p
-        X3  = h * s * 2 % p
-        Y3  = (w * (B4 - h) - R * R * 8) % p
-        Z3  = sss * 8 % p
+        R = Y1 * s % p
+        B_ = X1 * R % p
+        B4 = B_ * 4 % p
+        h = (w * w - B4 * 2) % p
+        X3 = h * s * 2 % p
+        Y3 = (w * (B4 - h) - R * R * 8) % p
+        Z3 = sss * 8 % p
         return GenericProjectivePoint(X3, Y3, Z3, p, self.a)
 
     def __add__(self, q):
@@ -656,16 +679,16 @@ class GenericProjectivePoint:
         Y1Z2 = Y1 * Z2 % p
         X1Z2 = X1 * Z2 % p
         Z1Z2 = Z1 * Z2 % p
-        u    = (Y2 * Z1 - Y1Z2) % p
-        uu   = u * u % p
-        v    = (X2 * Z1 - X1Z2) % p
-        vv   = v * v % p
-        vvv  = v * vv % p
-        R    = vv * X1Z2 % p
-        A    = (uu * Z1Z2 - vvv - 2 * R) % p
-        X3   = v * A % p
-        Y3   = (u * (R - A) - vvv * Y1Z2) % p
-        Z3   = vvv * Z1Z2 % p
+        u = (Y2 * Z1 - Y1Z2) % p
+        uu = u * u % p
+        v = (X2 * Z1 - X1Z2) % p
+        vv = v * v % p
+        vvv = v * vv % p
+        R = vv * X1Z2 % p
+        A = (uu * Z1Z2 - vvv - 2 * R) % p
+        X3 = v * A % p
+        Y3 = (u * (R - A) - vvv * Y1Z2) % p
+        Z3 = vvv * Z1Z2 % p
         if X1 * Z2 % p == X2 * Z1 % p:
             if Y1 * Z2 % p == Y2 * Z1 % p:
                 return self.double()
@@ -695,6 +718,7 @@ class GenericProjectivePoint:
 # Generic helpers for Selene/Helios divisor computation
 # ---------------------------------------------------------------------------
 
+
 def _compute_line_generic(ax, ay, a_id, bx, by, b_id, curve_a, p):
     """Like _compute_line but for a generic curve (curve_a, p)."""
     if a_id and b_id:
@@ -709,10 +733,18 @@ def _compute_line_generic(ax, ay, a_id, bx, by, b_id, curve_a, p):
             return SmallDivisor(1, (-ax) % p, 0, p)
         numer = (3 * ax % p * ax + curve_a) % p
         denom2 = 2 * ay % p
+        if denom2 == 0:
+            raise ValueError(
+                f"degenerate tangent: 2-torsion point (y=0) at x={ax}; input must be in prime-order subgroup"
+            )
         slope = numer * pow(denom2, p - 2, p) % p
     else:
         dx = (bx - ax) % p
         dy = (by - ay) % p
+        if dx == 0:
+            raise ValueError(
+                f"degenerate chord: x-coordinates equal ({ax}) but points not caught by equality check"
+            )
         slope = dy * pow(dx, p - 2, p) % p
     intercept = (by - slope * bx) % p
     return SmallDivisor((-slope) % p, (-intercept) % p, 1, p)
@@ -756,12 +788,12 @@ def _lines_and_denoms_generic(points, curve_a, p):
     else:
         aff = []
     pair_aff = [[(0, 0, True), (0, 0, True)] for _ in all_pairs]
-    for (pi, which, ki) in pair_slots:
+    for pi, which, ki in pair_slots:
         pair_aff[pi][which] = (aff[ki][0], aff[ki][1], False)
     result = []
     for pi, _ in enumerate(all_pairs):
-        (ax, ay, a_id) = pair_aff[pi][0]
-        (bx, by, b_id) = pair_aff[pi][1]
+        ax, ay, a_id = pair_aff[pi][0]
+        bx, by, b_id = pair_aff[pi][1]
         line = _compute_line_generic(ax, ay, a_id, bx, by, b_id, curve_a, p)
         x1 = None if a_id else ax
         x2 = None if b_id else bx
@@ -772,9 +804,9 @@ def _lines_and_denoms_generic(points, curve_a, p):
 def _divisor_to_poly_generic(div_obj, interp, field_cls):
     """Like _divisor_to_poly but constructs coefficients as field_cls elements."""
     a_coeffs, b_coeffs = div_obj.interpolate(interp)
-    zero_coeff      = field_cls(a_coeffs[0])
-    x_coefficients  = [field_cls(c) for c in a_coeffs[1:]]
-    y_coefficients  = [field_cls(b_coeffs[0])]
+    zero_coeff = field_cls(a_coeffs[0])
+    x_coefficients = [field_cls(c) for c in a_coeffs[1:]]
+    y_coefficients = [field_cls(b_coeffs[0])]
     yx_coefficients = [[field_cls(c) for c in b_coeffs[1:]]]
     return Poly(zero_coeff, y_coefficients, yx_coefficients, x_coefficients)
 
@@ -815,7 +847,9 @@ def _new_divisor_generic(points, interp, p, curve_a, curve_b, field_cls):
     return poly
 
 
-def _scalar_mul_divisor_generic(scalar, decomposition, T, num_bits, interp, p, curve_a, curve_b, field_cls):
+def _scalar_mul_divisor_generic(
+    scalar, decomposition, T, num_bits, interp, p, curve_a, curve_b, field_cls
+):
     """Like _scalar_mul_divisor but for a generic curve."""
     neg_result = -(T * scalar)
     pts = [GenericProjectivePoint.identity(p, curve_a)] * (num_bits + 1)
@@ -838,10 +872,11 @@ def _scalar_mul_divisor_generic(scalar, decomposition, T, num_bits, interp, p, c
 # ScalarDecomposition  (from lib.rs ScalarDecomposition::new)
 # ---------------------------------------------------------------------------
 
+
 class ScalarDecomposition:
     """Decompose a scalar s into coefficients d[i] such that:
-         sum(d[i] * 2^i)  ==  s  (mod l)
-         sum(d[i])        ==  NUM_BITS
+    sum(d[i] * 2^i)  ==  s  (mod l)
+    sum(d[i])        ==  NUM_BITS
     """
 
     def __init__(self, scalar_int, num_bits=ED25519_NUM_BITS, modulus=ED25519_L):
@@ -864,19 +899,27 @@ class ScalarDecomposition:
     def scalar_mul_divisor_selene(self, A):
         """Compute divisor for scalar * A on Selene (C1).
 
-        A: WPoint on Selene (field_cls=HelioseleneField).
-        Returns Poly with x_coefficients[0] == HelioseleneField(1).
+        A: WPoint on Selene (field_cls=SeleneField).
+        Returns Poly with x_coefficients[0] == SeleneField(1).
         ScalarDecomposition must have been built with num_bits=255 and modulus=HeliosField.P.
         """
         from curve import SELENE_B
-        p = HelioseleneField.P
-        curve_a = SELENE_A          # = p - 3
+
+        p = SeleneField.P
+        curve_a = SELENE_A  # = p - 3
         curve_b = int(SELENE_B.v)
         interp = get_interpolator(INTERPOLATOR_DEGREE_C1C2, p)
         T = GenericProjectivePoint.from_affine(int(A.x.v), int(A.y.v), p, curve_a)
         return _scalar_mul_divisor_generic(
-            self.scalar, self.decomposition, T, self.num_bits, interp,
-            p, curve_a, curve_b, HelioseleneField,
+            self.scalar,
+            self.decomposition,
+            T,
+            self.num_bits,
+            interp,
+            p,
+            curve_a,
+            curve_b,
+            SeleneField,
         )
 
     def scalar_mul_divisor_helios(self, A):
@@ -884,23 +927,32 @@ class ScalarDecomposition:
 
         A: WPoint on Helios (field_cls=HeliosField).
         Returns Poly with x_coefficients[0] == HeliosField(1).
-        ScalarDecomposition must have been built with num_bits=255 and modulus=HelioseleneField.P.
+        ScalarDecomposition must have been built with num_bits=255 and modulus=SeleneField.P.
         """
         from curve import HELIOS_B
+
         p = HeliosField.P
-        curve_a = HELIOS_A          # = p - 3
+        curve_a = HELIOS_A  # = p - 3
         curve_b = int(HELIOS_B.v)
         interp = get_interpolator(INTERPOLATOR_DEGREE_C1C2)
         T = GenericProjectivePoint.from_affine(int(A.x.v), int(A.y.v), p, curve_a)
         return _scalar_mul_divisor_generic(
-            self.scalar, self.decomposition, T, self.num_bits, interp,
-            p, curve_a, curve_b, HeliosField,
+            self.scalar,
+            self.decomposition,
+            T,
+            self.num_bits,
+            interp,
+            p,
+            curve_a,
+            curve_b,
+            HeliosField,
         )
 
 
 # ---------------------------------------------------------------------------
 # _decompose  (ScalarDecomposition::new algorithm)
 # ---------------------------------------------------------------------------
+
 
 def _decompose(scalar, num_bits, modulus):
     # Step 1: LE bits of scalar (num_bits of them)
@@ -909,34 +961,40 @@ def _decompose(scalar, num_bits, modulus):
     # Step 2: If scalar < num_bits, add the field modulus representation
     if scalar < num_bits:
         mod_d = [((modulus - 1) >> i) & 1 for i in range(num_bits)]
-        mod_d[0] += 1   # bits of `modulus` itself
+        mod_d[0] += 1  # bits of `modulus` itself
         d = [d[i] + mod_d[i] for i in range(num_bits)]
 
     # Step 3: Phase 1 — reduce coefficients > 1 by carrying upward
     log2_n = num_bits.bit_length()
     for _ in range(log2_n):
-        done = (sum(d) == num_bits)
+        done = sum(d) == num_bits
         for i in range(num_bits - 1):
             if not done and d[i] > 1:
-                d[i]     -= 2
+                d[i] -= 2
                 d[i + 1] += 1
                 done = True
 
     # Step 4: Phase 2 — expand by pulling from highest non-zero
     for _ in range(num_bits):
-        done = (sum(d) == num_bits)
+        done = sum(d) == num_bits
         for i in range(num_bits - 1, 0, -1):
             if not done and d[i] != 0:
-                d[i]     -= 1
+                d[i] -= 1
                 d[i - 1] += 2
                 done = True
 
+    if sum(d) != num_bits:
+        raise ValueError(
+            f"scalar decomposition invariant violated: sum(d)={sum(d)}, expected {num_bits}. "
+            f"scalar={scalar}, num_bits={num_bits}"
+        )
     return d
 
 
 # ---------------------------------------------------------------------------
 # _scalar_mul_divisor  (ScalarDecomposition::scalar_mul_divisor)
 # ---------------------------------------------------------------------------
+
 
 def _scalar_mul_divisor(scalar, decomposition, T, num_bits, interp):
     """Build the 254-point divisor array and call new_divisor.
