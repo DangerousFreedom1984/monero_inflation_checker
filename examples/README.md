@@ -4,15 +4,12 @@ Runnable, **instance-specific** demonstrations. These are deliberately kept out 
 the general library modules (`v1/`, `fcmp/src/`, ...) so that those modules stay
 generic and free of hardcoded wallets, transaction ids, or demo `print()` output.
 
-No wallet is hardcoded: the transaction builder / scanner examples read the wallet
-from the `FCMP_TX_KEYS` (and optional `FCMP_TX_ADDRESS_FILE`) environment variables.
-
 | Script | What it shows | Needs |
 |--------|---------------|-------|
 | `example_v1_ring_signature.py` | Generate a v1 ring signature and verify it (offline round-trip) | nothing |
-| `example_decode_address.py` | Decode a base58 Monero address into its public keys | an address (arg) or `FCMP_TX_KEYS` |
-| `example_scan_output.py` | Scan a tx and open a wallet-owned output | a node + `FCMP_TX_KEYS` |
-| `example_build_tx.py` | Build (optionally relay) an FCMP++ transaction | a node + `FCMP_TX_KEYS` |
+| `example_decode_address.py` | Decode a base58 Monero address into its public keys | an address (arg) |
+| `example_scan_output.py` | Scan a tx and open a wallet-owned output | a node |
+| `example_build_tx.py` | Build (optionally relay) an FCMP++ transaction | a node |
 
 Run any of them with the project's virtualenv, e.g.:
 

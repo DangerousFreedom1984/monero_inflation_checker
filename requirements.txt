@@ -3,4 +3,5 @@ numpy>=1.21,<3
 PyNaCl>=1.5
 requests>=2.28
 pycryptodome>=3.15
+py-cryptonight
 
