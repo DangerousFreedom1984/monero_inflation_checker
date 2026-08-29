@@ -1,7 +1,8 @@
-# Core runtime dependencies for the Monero Inflation Checker.
-numpy>=1.21,<3
-PyNaCl>=1.5
-requests>=2.28
-pycryptodome>=3.15
-py-cryptonight
+numpy==2.5.1
+PyNaCl==1.6.2
+requests==2.34.2
+pycryptodome==3.23.0
+py-cryptonight==1.0.0
 
+# Only needed to build the Helios/Selene extensions (mic/fcmp/bindings/build.sh)
+pybind11==3.1.0

@@ -1,0 +1,2 @@
+[console_scripts]
+fcmp-tool = fcmp_tool:main

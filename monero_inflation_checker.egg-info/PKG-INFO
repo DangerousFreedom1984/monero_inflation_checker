@@ -1,3 +1,26 @@
+Metadata-Version: 2.4
+Name: monero-inflation-checker
+Version: 0.2.0
+Summary: Independent verification of Monero supply: FCMP++ prover, verifier and chain scanner in pure Python
+Author: DangerousFreedom
+License-Expression: GPL-3.0-only
+Project-URL: Homepage, https://github.com/DangerousFreedom1984/monero_inflation_checker
+Keywords: monero,fcmp,bulletproofs,zero-knowledge,cryptography
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+License-File: NOTICE
+Requires-Dist: numpy<3,>=1.21
+Requires-Dist: PyNaCl<2,>=1.5
+Requires-Dist: requests<3,>=2.28
+Requires-Dist: pycryptodome<4,>=3.15
+Requires-Dist: py-cryptonight<2,>=1.0
+Provides-Extra: bindings
+Requires-Dist: pybind11>=2.10; extra == "bindings"
+Provides-Extra: dev
+Requires-Dist: pyflakes>=3.0; extra == "dev"
+Dynamic: license-file
+
 # Monero Inflation Checker
 
 This work, "MIC - Monero Inflation Checker", is a derivative of:
@@ -17,10 +40,10 @@ plus a separate tool for FCMP++ on testnet. You can get more information at
 
 ## What is it?
 
-**MIC** (`MIC.py`) is the original checker against **mainnet**. It verifies real
+**MIC** (`MIC.py`) is the original checker, against **mainnet**. It verifies real
 transactions as they appear on chain: v1 ring signatures, MLSAG, CLSAG, and
 Borromean / Bulletproof / Bulletproof+ range proofs, plus the commitment balance
-that fixes the amounts. It also checks the emission curve. 
+that pins the amounts. It also sums the emission curve. 
 
 **The FCMP++ tool** (`fcmp_tool.py`) is a **separate tool, for testnet**. 
 It generates and verifies complete FCMP++ transactions in pure Python with

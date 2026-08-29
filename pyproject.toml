@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "monero-inflation-checker"
+version = "0.2.0"
+description = "Independent verification of Monero supply: FCMP++ prover, verifier and chain scanner in pure Python"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-only"
+authors = [{ name = "DangerousFreedom" }]
+keywords = ["monero", "fcmp", "bulletproofs", "zero-knowledge", "cryptography"]
+
+# Upper bounds are deliberate: the crypto stack is pinned to majors that have been
+# run against the golden proof bytes. py-cryptonight has no releases beyond 1.0.
+dependencies = [
+    "numpy>=1.21,<3",
+    "PyNaCl>=1.5,<2",
+    "requests>=2.28,<3",
+    "pycryptodome>=3.15,<4",
+    "py-cryptonight>=1.0,<2",
+]
+
+[project.optional-dependencies]
+# Building the Helios/Selene C++ bindings. See mic/fcmp/bindings/build.sh
+bindings = ["pybind11>=2.10"]
+dev = ["pyflakes>=3.0"]
+
+[project.scripts]
+fcmp-tool = "fcmp_tool:main"
+
+[project.urls]
+Homepage = "https://github.com/DangerousFreedom1984/monero_inflation_checker"
+
+[tool.setuptools]
+# MIC.py and fcmp_tool.py sit at the repo root, so packages.find never sees them.
+# Without this the fcmp-tool console script cannot import its own module.
+py-modules = ["fcmp_tool", "MIC"]
+
+[tool.setuptools.packages.find]
+include = ["mic*"]
+
+[tool.setuptools.package-data]
+"mic.fcmp" = ["data/*.txt"]
+"mic.common" = ["*.npy"]
+"mic.fcmp.bindings" = ["*.cpp", "*.sh"]
+"mic.fcmp.bindings.benchmarks" = ["*.rs"]
+"mic.fcmp.r1cs_analysis" = ["*.md"]
+"mic.tests" = ["data/*.json"]

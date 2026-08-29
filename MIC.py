@@ -1,3 +1,5 @@
+
+from mic import paths
 #!/usr/bin/env python3
 """
 This work, "MIC - Monero Inflation Checker", is a derivative of:
@@ -6,24 +8,11 @@ This work, "MIC - Monero Inflation Checker", is a derivative of:
 "MIC - Monero Inflation Checker" is licensed under GPL 3.0 by DangerousFreedom.
 """
 
-# --- MIC path bootstrap: locate package root and configure sys.path ---
-import os as _os, sys as _sys
-
-_d = _os.path.dirname(_os.path.abspath(__file__))
-while _d != _os.path.dirname(_d):
-    if _os.path.exists(_os.path.join(_d, "mic_paths.py")):
-        if _d not in _sys.path:
-            _sys.path.insert(0, _d)
-        break
-    _d = _os.path.dirname(_d)
-import mic_paths  # noqa: E402,F401  (configures sys.path for component dirs)
-
-# --- end MIC path bootstrap ---
 
 from os.path import exists
-import verify_tx
-import scan_bc
-import settings_df25519
+from mic.chain import verify_tx
+from mic.chain import scan_bc
+from mic.common import settings_df25519
 import sys
 
 
@@ -71,13 +60,13 @@ def menu2():
 
     elif val == "2":
         block_to_check = input("Enter block to check:")
-        filename = mic_paths.stats_path("last_block_scanned.txt")
+        filename = paths.stats_path("last_block_scanned.txt")
         scan_bc.write_height(filename, str(block_to_check))
         scan_bc.start_scanning(filename, int(block_to_check), False)
 
     elif val == "3":
         print("Continue scanning...")
-        filename = mic_paths.stats_path("height.txt")
+        filename = paths.stats_path("height.txt")
         if exists(filename):
             h = int(scan_bc.read_height(filename))
         else:
@@ -87,7 +76,7 @@ def menu2():
 
     elif val == "4":
         print("Continue scanning...")
-        filename = mic_paths.stats_path("height_pc.txt")
+        filename = paths.stats_path("height_pc.txt")
         if exists(filename):
             h = int(scan_bc.read_height(filename))
         else:
@@ -122,7 +111,7 @@ if __name__ == "__main__":
 
     elif sys.argv[1] == "scan_fast":
         settings_df25519.node_choice(1)
-        filename = mic_paths.stats_path("height.txt")
+        filename = paths.stats_path("height.txt")
         if exists(filename):
             h = int(scan_bc.read_height(filename))
         else:
@@ -132,7 +121,7 @@ if __name__ == "__main__":
 
     elif sys.argv[1] == "scan_blocks":
         settings_df25519.node_choice(0)
-        filename = mic_paths.stats_path("last_block_scanned.txt")
+        filename = paths.stats_path("last_block_scanned.txt")
         if exists(filename):
             h = int(scan_bc.read_height(filename))
         else:
