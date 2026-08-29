@@ -37,9 +37,8 @@ Python >= 3.10. Install into a fresh virtual environment:
 python3 -m venv venv
 source venv/bin/activate
 
-pip install -r requirements.txt   # pinned versions, reproducible
-# or
-pip install -e .                  # editable install, looser ranges
+pip install -r requirements.txt   
+pip install -e .                  # editable install
 ```
 
 To install the constant-time Helios/Selene bindings:
